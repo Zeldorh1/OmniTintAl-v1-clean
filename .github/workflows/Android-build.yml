@@ -1,0 +1,40 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch: # Allows you to trigger the build manually
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install Expo CLI
+        run: npm install -g eas-cli
+
+      - name: Install dependencies
+        run: yarn install
+
+      # 🔎 Debug step to check if EXPO_TOKEN is injected
+      - name: Debug EXPO_TOKEN visibility
+        run: |
+          echo "EXPO_TOKEN length: ${#EXPO_TOKEN}"
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "❌ EXPO_TOKEN is EMPTY"
+          else
+            echo "✅ EXPO_TOKEN is set (hidden)"
+          fi
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build -p android --profile preview --non-interactive

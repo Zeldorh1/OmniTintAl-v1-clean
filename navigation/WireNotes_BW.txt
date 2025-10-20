@@ -1,0 +1,17 @@
+BLACK & WHITE THEME PATCH — Wiring Notes (keeps your current structure)
+-----------------------------------------------------------------------
+1) Wrap your NavigationContainer with ThemeProvider in App.tsx:
+     import { ThemeProvider } from '@/context/ThemeContext';
+     // ...
+     <ThemeProvider>
+       <NavigationContainer>{/* existing tabs/stacks */}</NavigationContainer>
+     </ThemeProvider>
+
+2) Register these optional screens (add, don't replace):
+     import HomeStyled_BW from '@/screens/HomeStyled_BW';
+     import SettingsTheme from '@/screens/SettingsTheme';
+     <Stack.Screen name="HomeBW" component={HomeStyled_BW} options={{ title: 'Home' }} />
+     <Stack.Screen name="SettingsTheme" component={SettingsTheme} options={{ title: 'Appearance' }} />
+
+3) Default look is crisp black/white. To enable your pink background like in earlier builds,
+   navigate to Settings → Appearance and toggle "Colorful Backgrounds" ON.

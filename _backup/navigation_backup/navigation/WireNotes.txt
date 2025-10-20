@@ -1,0 +1,14 @@
+HOW TO APPLY THIS THEME ADD-ON (keeps your v2 structure)
+-------------------------------------------------------
+1) Drop the files under client/src/* into your project.
+2) Register the new screens (non-breaking):
+    import HomeStyled from '@/screens/HomeStyled';
+    import HairHealthResultGood from '@/screens/HairHealthResultGood';
+    import HairHealthResultRecovery from '@/screens/HairHealthResultRecovery';
+    // In your Stack.Navigator (add, don't replace)
+    <Stack.Screen name="HomeStyled" component={HomeStyled} options={{ title: 'Home' }} />
+    <Stack.Screen name="HairGood" component={HairHealthResultGood} options={{ title: 'Hair Health' }} />
+    <Stack.Screen name="HairRecovery" component={HairHealthResultRecovery} options={{ title: 'Hair Health' }} />
+3) Use <PremiumDrawer visible={isOpen} onClose={()=>setOpen(false)} nav={navigation} /> in your Menu/Premium screen to show the dark drawer overlay like the screenshot.
+4) Replace placeholder tile images in client/assets/images/explore*.png with your art (optional).
+5) Colors/typography are in client/src/theme/design.ts — tweak to taste.

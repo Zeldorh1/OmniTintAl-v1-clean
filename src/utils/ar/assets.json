@@ -1,0 +1,49 @@
+{
+  "styles": [
+    {
+      "id": "360_locs_highbun",
+      "name": "Locs High Bun (360)",
+      "thumb": "locs_highbun_360.png",
+      "sources": [
+        "locs_highbun_000.png",
+        "locs_highbun_045.png",
+        "locs_highbun_090.png",
+        "locs_highbun_135.png",
+        "locs_highbun_180.png",
+        "locs_highbun_225.png",
+        "locs_highbun_270.png",
+        "locs_highbun_315.png"
+      ]
+    },
+    {
+      "id": "360_box_braids",
+      "name": "Box Braids (360)",
+      "thumb": "braids_box_360.png",
+      "sources": [
+        "braids_box_000.png",
+        "braids_box_045.png",
+        "braids_box_090.png",
+        "braids_box_135.png",
+        "braids_box_180.png",
+        "braids_box_225.png",
+        "braids_box_270.png",
+        "braids_box_315.png"
+      ]
+    },
+    {
+      "id": "360_loose_curls",
+      "name": "Loose Curls (360)",
+      "thumb": "curls_loose_360.png",
+      "sources": [
+        "curls_loose_000.png",
+        "curls_loose_045.png",
+        "curls_loose_090.png",
+        "curls_loose_135.png",
+        "curls_loose_180.png",
+        "curls_loose_225.png",
+        "curls_loose_270.png",
+        "curls_loose_315.png"
+      ]
+    }
+  ]
+}
