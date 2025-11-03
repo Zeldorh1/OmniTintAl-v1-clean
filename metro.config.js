@@ -1,24 +1,16 @@
-// client/metro.config.js
 const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// ✅ Allow images, fonts, videos, JSON, etc.
-config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
-config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg', 'js', 'json', 'ts', 'tsx'];
-config.resolver.assetExts.push('png', 'jpg', 'jpeg', 'gif', 'mp4', 'ttf', 'otf');
+// --- Handle SVGs and custom extensions ---
+config.resolver.assetExts = config.resolver.assetExts.filter(
+  (ext) => ext !== 'svg'
+);
+config.resolver.sourceExts.push('svg', 'pro.js');
 
-// ✅ Enable Hermes-friendly source maps + SVG transformer
-config.transformer = {
-  ...config.transformer,
-  babelTransformerPath: require.resolve('react-native-svg-transformer'),
-  minifierPath: 'metro-minify-terser',
-  minifierConfig: {
-    ecma: 8,
-    keep_classnames: true,
-    keep_fnames: true,
-    module: true,
-  },
-};
+// --- Transform SVGs ---
+config.transformer.babelTransformerPath = require.resolve(
+  'react-native-svg-transformer'
+);
 
 module.exports = config;

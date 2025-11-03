@@ -1,0 +1,22 @@
+[
+  { "code": "R3",  "name": "Cherry Red",         "hex": "#C12A2A", "tone": "warm",   "lightness": "medium", "brands": ["L'Oreal","Clairol"] },
+  { "code": "R2",  "name": "Crimson Red",        "hex": "#A71221", "tone": "warm",   "lightness": "dark"   },
+  { "code": "R6",  "name": "Rose Red",           "hex": "#E34B5B", "tone": "warm",   "lightness": "light"  },
+  { "code": "5N",  "name": "Natural Brown",      "hex": "#4A341F", "tone": "neutral","lightness": "dark"   },
+  { "code": "6N",  "name": "Medium Natural",     "hex": "#6A4F35", "tone": "neutral","lightness": "medium" },
+  { "code": "7N",  "name": "Light Natural",      "hex": "#8A6D4F", "tone": "neutral","lightness": "light"  },
+  { "code": "5A",  "name": "Ash Brown",          "hex": "#4E463C", "tone": "cool",   "lightness": "dark"   },
+  { "code": "7A",  "name": "Ash Blonde",         "hex": "#B18A68", "tone": "cool",   "lightness": "light"  },
+  { "code": "8A",  "name": "Light Ash Blonde",   "hex": "#C9AB8D", "tone": "cool",   "lightness": "light"  },
+  { "code": "P",   "name": "Platinum",           "hex": "#E6E6E6", "tone": "neutral","lightness": "verylight" },
+  { "code": "JB",  "name": "Jet Black",          "hex": "#0A0A0A", "tone": "cool",   "lightness": "verydark" },
+  { "code": "CH",  "name": "Chestnut",           "hex": "#6B3F2C", "tone": "warm",   "lightness": "medium" },
+  { "code": "AB",  "name": "Auburn",             "hex": "#8D3C2B", "tone": "warm",   "lightness": "medium" },
+  { "code": "CC",  "name": "Cherry-Cola",        "hex": "#6C1E2A", "tone": "warm",   "lightness": "dark"   },
+  { "code": "GG",  "name": "Golden Glass Blonde","hex": "#E9C99C", "tone": "warm",   "lightness": "light"  },
+  { "code": "MM",  "name": "Mocha Mousse",       "hex": "#5A3E34", "tone": "neutral","lightness": "dark"   },
+  { "code": "CO",  "name": "Copper",             "hex": "#C16634", "tone": "warm",   "lightness": "medium" },
+  { "code": "BL",  "name": "Blue",               "hex": "#2F57D3", "tone": "cool",   "lightness": "medium" },
+  { "code": "GN",  "name": "Green",              "hex": "#2DBE5A", "tone": "cool",   "lightness": "medium" },
+  { "code": "LV",  "name": "Lavender",           "hex": "#A58BD4", "tone": "cool",   "lightness": "light"  }
+]

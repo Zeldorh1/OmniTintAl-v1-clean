@@ -1,0 +1,12 @@
+[
+  { "id": "warm_glow", "name": "Warm Glow", "category": "Classic", "premium": false, "shader": "brightness(1.05) contrast(1.1) sepia(0.2)" },
+  { "id": "cool_tone", "name": "Cool Tone", "category": "Classic", "premium": false, "shader": "brightness(1.0) contrast(1.0) hueRotate(190deg)" },
+  { "id": "cinematic", "name": "Cinematic", "category": "Mood", "premium": false, "shader": "contrast(1.25) brightness(1.1) saturate(0.9)" },
+  { "id": "soft_skin", "name": "Soft Skin", "category": "Beauty", "premium": false, "shader": "blur(1.5px) brightness(1.05)" },
+  { "id": "vintage", "name": "Vintage", "category": "Fun", "premium": false, "shader": "sepia(0.4) contrast(1.05)" },
+  { "id": "bw_high", "name": "Black & White", "category": "Classic", "premium": false, "shader": "grayscale(1.0) contrast(1.2)" },
+  { "id": "retro_film", "name": "Retro Film", "category": "Fun", "premium": false, "shader": "sepia(0.5) saturate(0.7)" },
+  { "id": "golden_hour", "name": "Golden Hour", "category": "Mood", "premium": true, "shader": "brightness(1.2) sepia(0.3) contrast(1.1)" },
+  { "id": "old_age", "name": "Old Age", "category": "Age", "premium": true, "shader": "contrast(0.9) saturate(0.7)" },
+  { "id": "young_skin", "name": "Youth", "category": "Age", "premium": true, "shader": "brightness(1.15) contrast(1.1)" }
+]

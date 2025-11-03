@@ -1,22 +1,35 @@
 {
   "cli": {
-    "version": ">= 3.13.0"
+    "version": ">=3.23.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_NEW_ARCH_ENABLED": "1",              // Enable new architecture
+        "EX_DEV_CLIENT_FORCE_NO_NEW_ARCH": "0",    // Allow new architecture
+        "ORG_GRADLE_PROJECT_newArchEnabled": "true",
+        "REACT_NATIVE_ENABLE_CODEGEN": "1",        // Enable codegen for new arch
+        "EAS_SKIP_AUTO_FINGERPRINT": "1",
+        "EAS_BUILD_CONCURRENCY": "1",
+        "NODE_VERSION": "20.11.1",
+        "NODE_ENV": "development"                  // Add NODE_ENV to fix the warning
       }
     },
     "production": {
-      "android": {
-        "buildType": "app-bundle"
+      "autoIncrement": true,
+      "distribution": "store",
+      "android": { "buildType": "app-bundle", "gradleCommand": ":app:bundleRelease" },
+      "env": {
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_NEW_ARCH_ENABLED": "0",
+        "EX_DEV_CLIENT_FORCE_NO_NEW_ARCH": "1",
+        "ORG_GRADLE_PROJECT_newArchEnabled": "false",
+        "REACT_NATIVE_ENABLE_CODEGEN": "0"
       }
     }
-  },
-  "submit": {
-    "production": {}
   }
 }

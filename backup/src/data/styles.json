@@ -1,0 +1,20 @@
+[
+  {
+    "id": "style_1",
+    "name": "Classic Fade",
+    "category": "Fades",
+    "overlay": "fade_overlay.png"
+  },
+  {
+    "id": "style_2",
+    "name": "Curly Volume",
+    "category": "Curls",
+    "overlay": "curly_overlay.png"
+  },
+  {
+    "id": "style_3",
+    "name": "Braided Crown",
+    "category": "Braids",
+    "overlay": "braid_overlay.png"
+  }
+]

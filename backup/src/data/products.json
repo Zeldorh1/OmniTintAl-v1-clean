@@ -1,0 +1,29 @@
+[
+  {
+    "id": "p1",
+    "name": "Wyckoff Blonde 8N",
+    "brand": "LuxMane",
+    "hex": "#E8D6B3",
+    "image": "blonde.png",
+    "price": 19.99,
+    "description": "Neutral blonde dye"
+  },
+  {
+    "id": "p2",
+    "name": "Copper Red 6R",
+    "brand": "LuxMane",
+    "hex": "#B64E3B",
+    "image": "red.png",
+    "price": 17.99,
+    "description": "Vibrant copper red"
+  },
+  {
+    "id": "p3",
+    "name": "Ash Brown 5A",
+    "brand": "LuxMane",
+    "hex": "#6B5B4D",
+    "image": "brown.png",
+    "price": 18.49,
+    "description": "Cool ash brown"
+  }
+]

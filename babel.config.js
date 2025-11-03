@@ -7,6 +7,7 @@ module.exports = function (api) {
         'module-resolver',
         {
           root: ['./src'],
+          extensions: ['.js', '.jsx', '.ts', '.tsx', '.json', '.pro.js'],
           alias: {
             '@components': './src/components',
             '@context': './src/context',
@@ -15,12 +16,11 @@ module.exports = function (api) {
             '@screens': './src/screens',
             '@theme': './src/theme',
             '@utils': './src/utils',
-            '@assets': './src/assets',
+            '@assets': './assets',
           },
-          extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
         },
       ],
-      // 👇 MUST be the last plugin
+      // 👇 must always remain last
       'react-native-reanimated/plugin',
     ],
   };

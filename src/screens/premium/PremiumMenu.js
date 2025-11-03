@@ -50,10 +50,10 @@ export default function PremiumMenu() {
       <ScrollView contentContainerStyle={s.container}>
         <Text style={s.h1}>✨ PREMIUM MENU ✨</Text>
 
-        <Row icon="question"       label="AR Try-On"              to="ARStudio" />
+        <Row icon="question"       label="AR Try-On"              to="ARStudioMainV2" />
         <Row icon="cube"           label="360° Try-On"            to="AR360PreviewScreen" />
         <Row icon="cut"            label="Hair Health Scanner"    to="HairHealthScannerScreen" />
-        <Row icon="flask"          label="Custom Hair Mixer Pro"  to="HairMixerScreen" />
+        <Row icon="flask"          label="Custom Hair Mixer Pro"  to="HairMixerPro" />
         <Row icon="magic"          label="AI Suggested Styles"    to="AIStylesScreen" />
         <Row icon="balance-scale"  label="Compare Products"       to="CompareProductsScreen" />
         <Row icon="chart-line"     label="Trend Radar"            to="TrendRadarScreen" />

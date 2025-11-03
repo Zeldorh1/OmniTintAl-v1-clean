@@ -1,0 +1,22 @@
+[
+  {
+    "id": "b1",
+    "name": "Wyckoff Theory Bundle",
+    "items": [
+      "p1",
+      "p2",
+      "p3"
+    ],
+    "price": 49.99,
+    "description": "Beginner + Intermediate + Advanced dyes set"
+  },
+  {
+    "id": "b2",
+    "name": "Starter Blonde Pack",
+    "items": [
+      "p1"
+    ],
+    "price": 17.99,
+    "description": "Intro to blonde tone"
+  }
+]
