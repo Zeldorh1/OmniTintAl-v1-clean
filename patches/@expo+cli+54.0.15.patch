@@ -1,0 +1,68 @@
+diff --git a/node_modules/@expo/cli/build/src/start/server/metro/withMetroMultiPlatform.js b/node_modules/@expo/cli/build/src/start/server/metro/withMetroMultiPlatform.js
+index 2832099..a9aaa35 100644
+--- a/node_modules/@expo/cli/build/src/start/server/metro/withMetroMultiPlatform.js
++++ b/node_modules/@expo/cli/build/src/start/server/metro/withMetroMultiPlatform.js
+@@ -185,39 +185,35 @@ function withExtendedResolver(config, { tsconfig, autolinkingModuleResolverInput
+             'react-native/Libraries/Image/resolveAssetSource': 'expo-asset/build/resolveAssetSource'
+         }
+     };
+-    // The vendored canary modules live inside /static/canary-full/node_modules
++// The vendored canary modules live inside /static/canary-full/node_modules
+     // Adding the `index.js` allows us to add this path as `originModulePath` to
+     // resolve the nested `node_modules` folder properly.
+     const canaryModulesPath = _path().default.join(require.resolve('@expo/cli/package.json'), '../static/canary-full/index.js');
+-    let _universalAliases;
++let _universalAliases = null;
++
+     function getUniversalAliases() {
+-        if (_universalAliases) {
+-            return _universalAliases;
+-        }
+-        _universalAliases = [];
+-        // This package is currently always installed as it is included in the `expo` package.
+-        if (_resolvefrom().default.silent(config.projectRoot, '@expo/vector-icons')) {
+-            debug('Enabling alias: react-native-vector-icons -> @expo/vector-icons');
+-            _universalAliases.push([
+-                /^react-native-vector-icons(\/.*)?/,
+-                '@expo/vector-icons$1'
+-            ]);
+-        }
+-        if (isReactServerComponentsEnabled) {
+-            if (_resolvefrom().default.silent(config.projectRoot, 'expo-router/rsc')) {
+-                debug('Enabling bridge alias: expo-router -> expo-router/rsc');
+-                _universalAliases.push([
+-                    /^expo-router$/,
+-                    'expo-router/rsc'
+-                ]);
+-                // Bridge the internal entry point which is a standalone import to ensure package.json resolution works as expected.
+-                _universalAliases.push([
+-                    /^expo-router\/entry-classic$/,
+-                    'expo-router/rsc/entry'
+-                ]);
+-            }
+-        }
++      if (_universalAliases !== null) {
+         return _universalAliases;
++      }
++
++      _universalAliases = [];
++
++      // --- ZELDORH PATCH: DISABLE @expo/vector-icons ---
++      // if (_resolvefrom().default.silent(config.projectRoot, '@expo/vector-icons')) {
++      //   debug('Enabling alias: react-native-vector-icons -> @expo/vector-icons');
++      //   _universalAliases.push([/^react-native-vector-icons(\\\\/.*)?$/, '@expo/vector-icons$1']);
++      // }
++
++      if (isReactServerComponentsEnabled) {
++        if (_resolvefrom().default.silent(config.projectRoot, 'expo-router/rsc')) {
++          debug('Enabling bridge alias: expo-router -> expo-router/rsc');
++          _universalAliases.push([/^expo-router$/, 'expo-router/rsc']);
++          _universalAliases.push([/^expo-router\\\/entry-classic$/, 'expo-router/rsc/entry']);
++        }
++      }
++
++      return _universalAliases;
++
+     }
+     // used to resolve externals in `requestCustomExternals` from the project root
+     const projectRootOriginPath = _path().default.join(config.projectRoot, 'package.json');

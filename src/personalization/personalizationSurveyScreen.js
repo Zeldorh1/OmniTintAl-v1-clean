@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { useThemePro } from "../../context/ThemeContext";
-import { saveSurveyAnswers, loadSurveyAnswers, pushMetaEvent } from "../../storage/SurveyStorage";
+
+// ✅ FIXED: use the new store (your renamed file)
+import { saveSurveyAnswers, loadSurveyAnswers, logEvent } from "../../storage/UserProfileStore";
 
 const QUESTIONS = [
-  { key: "hair_type", label: "Your hair type", options: ["straight","wavy","curly","coily"] },
-  { key: "scalp_condition", label: "Scalp condition", options: ["balanced","oily","dry","dandruff"] },
-  { key: "goal", label: "Main hair goal", options: ["repair","volume","longevity","color-safe"] },
-  { key: "preferred_tones", label: "Favorite tones", options: ["ash","warm","neutral","vivid"] },
-  { key: "chemical_sensitivity", label: "Sensitive to chemicals?", options: ["no","mild","yes"] },
-  { key: "styling_time", label: "Typical styling time", options: ["<10m","10-20m","20-40m",">40m"] },
+  { key: "hair_type", label: "Your hair type", options: ["straight", "wavy", "curly", "coily"] },
+  { key: "scalp_condition", label: "Scalp condition", options: ["balanced", "oily", "dry", "dandruff"] },
+  { key: "goal", label: "Main hair goal", options: ["repair", "volume", "longevity", "color-safe"] },
+  { key: "preferred_tones", label: "Favorite tones", options: ["ash", "warm", "neutral", "vivid"] },
+  { key: "chemical_sensitivity", label: "Sensitive to chemicals?", options: ["no", "mild", "yes"] },
+  { key: "styling_time", label: "Typical styling time", options: ["<10m", "10-20m", "20-40m", ">40m"] },
 ];
 
 export default function PersonalizationSurveyScreen({ navigation }) {
@@ -26,22 +28,31 @@ export default function PersonalizationSurveyScreen({ navigation }) {
   const pick = (key, value) => setAnswers((a) => ({ ...a, [key]: value }));
 
   const submit = async () => {
+    // ✅ Keep it user-friendly: store only answers + minimal meta
     const payload = {
       ...answers,
-      // anonymized sample meta block — mirrors your preferred schema
-      user_hash: "local_" + (await import("react-native-device-info")).default.getUniqueId(),
       module: "Personalization",
       region: "US-IN",
-      theme_color: theme.accent,
+      theme_color: theme?.accent,
       created_at: new Date().toISOString(),
     };
+
     await saveSurveyAnswers(payload);
-    await pushMetaEvent({ module: "Personalization", action: "submit", tags: Object.keys(answers) });
+
+    // ✅ Replaces pushMetaEvent: lightweight local telemetry
+    await logEvent("PERSONALIZATION_SUBMIT", {
+      tags: Object.keys(answers),
+      answeredCount: Object.keys(answers).length,
+    });
+
     navigation.goBack();
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.bg }]} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.bg }]}
+      contentContainerStyle={{ paddingBottom: 40 }}
+    >
       <Text style={[styles.title, { color: theme.text }]}>Personalization & Recommendations</Text>
       <Text style={[styles.caption, { color: theme.text, opacity: 0.7 }]}>
         Optional • Answer a few quick questions to tailor styles, colors, and products to you.
@@ -50,16 +61,28 @@ export default function PersonalizationSurveyScreen({ navigation }) {
       {QUESTIONS.map((q) => (
         <View key={q.key} style={styles.card}>
           <Text style={[styles.q, { color: theme.text }]}>{q.label}</Text>
+
           <View style={styles.row}>
             {q.options.map((opt) => {
-              const active = answers[q.key] === opt || (Array.isArray(answers[q.key]) && answers[q.key]?.includes?.(opt));
+              const active =
+                answers[q.key] === opt ||
+                (Array.isArray(answers[q.key]) && answers[q.key]?.includes?.(opt));
+
               return (
                 <Pressable
                   key={opt}
                   onPress={() => pick(q.key, opt)}
-                  style={[styles.pill, { borderColor: theme.text + "22", backgroundColor: active ? theme.accent + "26" : "#fff" }]}
+                  style={[
+                    styles.pill,
+                    {
+                      borderColor: theme.text + "22",
+                      backgroundColor: active ? theme.accent + "26" : "#fff",
+                    },
+                  ]}
                 >
-                  <Text style={{ color: active ? theme.accent : theme.text, fontWeight: "600" }}>{opt}</Text>
+                  <Text style={{ color: active ? theme.accent : theme.text, fontWeight: "600" }}>
+                    {opt}
+                  </Text>
                 </Pressable>
               );
             })}

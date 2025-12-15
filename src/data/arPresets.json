@@ -1,22 +1,32 @@
 [
-  { "id": "pixie_short",        "displayName": "Pixie (Short)",         "category": "Short",  "image": "styles/pixie_short.png",     "mesh": null, "defaultColor": "7N", "premium": false },
-  { "id": "bob_short",          "displayName": "Bob (Short)",           "category": "Short",  "image": "styles/bob_short.png",       "mesh": null, "defaultColor": "6N", "premium": false },
-  { "id": "long_layers",        "displayName": "Long Layers",           "category": "Long",   "image": "styles/long_layers.png",     "mesh": null, "defaultColor": "GG", "premium": false },
-  { "id": "curls_mid",          "displayName": "Mid Curls",             "category": "Curls",  "image": "styles/curls_mid.png",       "mesh": null, "defaultColor": "AB", "premium": false },
-  { "id": "waves_beach",        "displayName": "Beach Waves",           "category": "Curls",  "image": "styles/waves_beach.png",     "mesh": null, "defaultColor": "7A", "premium": false },
-  { "id": "braids_long",        "displayName": "Box Braids (Long)",     "category": "Braids", "image": "styles/braids_long.png",     "mesh": null, "defaultColor": "JB", "premium": false },
-  { "id": "locs_mid",           "displayName": "Locs (Medium)",         "category": "Dreads/Locs", "image": "styles/locs_mid.png", "mesh": null, "defaultColor": "5N", "premium": false },
-  { "id": "fade_low",           "displayName": "Low Fade",              "category": "Fades",  "image": "styles/fade_low.png",        "mesh": null, "defaultColor": "JB", "premium": false },
-  { "id": "bangs_straight",     "displayName": "Straight Bangs",        "category": "Short Cuts", "image": "styles/bangs_straight.png", "mesh": null, "defaultColor": "P", "premium": false },
-  { "id": "updo_elegant",       "displayName": "Elegant Updo",          "category": "Long",   "image": "styles/updo_elegant.png",    "mesh": null, "defaultColor": "GG", "premium": true  }
+  { "id": "pixie_short", "displayName": "Pixie (Short)", "category": "Short", "image": "styles/pixie_short.png", "mesh": null, "defaultColor": "7N", "premium": false },
+
+  { "id": "bob_short", "displayName": "Bob (Short)", "category": "Short", "image": "styles/bob_short.png", "mesh": null, "defaultColor": "6N", "premium": false },
+
+  { "id": "long_layers", "displayName": "Long Layers", "category": "Long", "image": "styles/long_layers.png", "mesh": null, "defaultColor": "GG", "premium": false },
+
+  { "id": "curls_mid", "displayName": "Mid Curls", "category": "Curls", "image": "styles/curls_mid.png", "mesh": null, "defaultColor": "AB", "premium": false },
+
+  { "id": "waves_beach", "displayName": "Beach Waves", "category": "Curls", "image": "styles/waves_beach.png", "mesh": null, "defaultColor": "7A", "premium": false },
+
+  { "id": "braids_long", "displayName": "Box Braids (Long)", "category": "Braids", "image": "styles/braids_long.png", "mesh": null, "defaultColor": "JB", "premium": false },
+
+  { "id": "locs_mid", "displayName": "Locs (Medium)", "category": "Dreads/Locs", "image": "styles/locs_mid.png", "mesh": null, "defaultColor": "5N", "premium": false },
+
+  { "id": "fade_low", "displayName": "Low Fade", "category": "Fades", "image": "styles/fade_low.png", "mesh": null, "defaultColor": "JB", "premium": false },
+
+  { "id": "bangs_straight", "displayName": "Straight Bangs", "category": "Short Cuts", "image": "styles/bangs_straight.png", "mesh": null, "defaultColor": "P", "premium": false },
+
+  { "id": "updo_elegant", "displayName": "Elegant Updo", "category": "Long", "image": "styles/updo_elegant.png", "mesh": null, "defaultColor": "GG", "premium": true },
+
+  {
+    "id": "celeb_rihanna_red_bob",
+    "displayName": "Rihanna – Red Bob",
+    "category": "Celebrity",
+    "image": "https://cdn.omnitint.ai/styles/rihanna_red_bob.png",
+    "mesh": null,
+    "defaultColor": "R3",
+    "celebrity": true,
+    "premium": true
+  }
 ]
-{
-  "id": "celeb_rihanna_red_bob",
-  "displayName": "Rihanna – Red Bob",
-  "category": "Celebrity",
-  "image": "https://cdn.omnitint.ai/styles/rihanna_red_bob.png",
-  "mesh": null,
-  "defaultColor": "R3",
-  "celebrity": true,
-  "premium": true
-}

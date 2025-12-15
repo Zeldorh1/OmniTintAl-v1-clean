@@ -27,7 +27,16 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.luxwave.omnitintai"
+      "package": "com.luxwave.omnitintai",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "VIBRATE",
+        "USE_FINGERPRINT",
+        "USE_BIOMETRIC",
+        "POST_NOTIFICATIONS"
+      ],
+      "newArchEnabled": false
     },
     "extra": {
       "eas": {
@@ -38,16 +47,16 @@
     "plugins": [
       "expo-localization",
       "expo-secure-store",
+      "expo-mail-composer",
+      "expo-asset",
       [
-        "expo-build-properties",
+        "react-native-vision-camera",
         {
-          "android": {
-            "newArchEnabled": false
-          }
+          "cameraPermissionText": "Allow $(PRODUCT_NAME) to access your camera",
+          "enableFrameProcessors": true
         }
       ],
-      "expo-mail-composer",
-      "expo-asset"
+      "expo-video"
     ]
   }
 }

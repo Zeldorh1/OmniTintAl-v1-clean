@@ -7,10 +7,11 @@ const FavContext = createContext(null);
 function useFavImpl() {
   const [favs, setFavs] = useState([]);
 
+  const isFav = (id) => favs.some((x) => x.id === id);
+
   const addFav = (item) => {
     setFavs((prev) => {
-      // avoid duplicates
-      if (prev.find((x) => x.id === item.id)) return prev;
+      if (prev.find((x) => x.id === item.id)) return prev; // avoid duplicates
       return [...prev, item];
     });
   };
@@ -19,9 +20,22 @@ function useFavImpl() {
     setFavs((prev) => prev.filter((x) => x.id !== id));
   };
 
+  const toggle = (item) => {
+    if (isFav(item.id)) removeFav(item.id);
+    else addFav(item);
+  };
+
   const clearFavs = () => setFavs([]);
 
-  return { favs, addFav, removeFav, clearFavs };
+  return {
+    favs,
+    isFav,
+    addFav,
+    removeFav,
+    toggle,
+    clearFavs,
+    count: favs.length,
+  };
 }
 
 // Provider component that wraps around your app

@@ -7,7 +7,7 @@ node_modules/
 dist/
 build/
 web-build/
-android/
+# android/
 ios/
 
 # Logs

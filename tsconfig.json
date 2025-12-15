@@ -1,4 +1,5 @@
 {
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
@@ -13,46 +14,17 @@
     "resolveJsonModule": true,
     "baseUrl": "./",
     "paths": {
-      "@components/*": [
-        "src/components/*"
-      ],
-      "@context/*": [
-        "src/context/*"
-      ],
-      "@data/*": [
-        "src/data/*"
-      ],
-      "@navigation/*": [
-        "src/navigation/*"
-      ],
-      "@screens/*": [
-        "src/screens/*"
-      ],
-      "@theme/*": [
-        "src/theme/*"
-      ],
-      "@utils/*": [
-        "src/utils/*"
-      ],
-      "@assets/*": [
-        "assets/*"
-      ]
-    },
-    "types": [
-      "react",
-      "react-native",
-      "expo"
-    ]
+      "@components/*": ["src/components/*"],
+      "@context/*": ["src/context/*"],
+      "@data/*": ["src/data/*"],
+      "@navigation/*": ["navigation/*"],
+      "@screens/*": ["src/screens/*"],
+      "@theme/*": ["src/theme/*"],
+      "@utils/*": ["src/utils/*"],
+      "@storage/*": ["src/storage/*"],
+      "@assets/*": ["assets/*"]
+    }
   },
-  "include": [
-    "src",
-    "App.js",
-    "App.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "babel.config.js",
-    "metro.config.js"
-  ],
-  "extends": "expo/tsconfig.base"
+  "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+  "exclude": ["node_modules"]
 }

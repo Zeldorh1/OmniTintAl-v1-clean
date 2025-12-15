@@ -1,4 +1,4 @@
-// src/screens/Favorites.js
+// client/src/screens/Favorites.js
 import React, { useMemo } from 'react';
 import {
   SafeAreaView,
@@ -10,40 +10,53 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { FontAwesome5 } from '@expo/vector-icons';
 
-// paths are from /src/screens/Favorites.js to siblings
+// ────── CONTEXTS ──────
 import { useFavs } from '../context/FavoritesContext';
-let FavoriteCard; // optional helper component if you already have one
+import { useThemePro } from '../context/ThemeContext';
+
+// ────── OPTIONAL CARD COMPONENT ──────
+let FavoriteCard = null;
 try {
-  // If you have src/components/FavoriteCard.js this will be used automatically.
-  FavoriteCard = require('../components/FavoriteCard').default;
-} catch (_) {}
+  // If you have a custom card component, it will be used
+  FavoriteCard = require('../components/FavoritesCard').default;
+} catch (_) {
+  FavoriteCard = null;
+}
 
+// ────── MAIN SCREEN ──────
 export default function Favorites() {
-  const favs = useFavs?.() || {};
   const nav = useNavigation();
+  const favs = useFavs?.() || {};
+  const { colors } = useThemePro();
 
-  // Be compatible with either favs.items (array) OR favs.list() (function)
+  // Normalize favorites list
   const items = useMemo(() => {
     if (Array.isArray(favs?.items)) return favs.items;
     if (typeof favs?.list === 'function') return favs.list() || [];
     return [];
   }, [favs]);
 
+  // Remove from favorites
+  const removeFavorite = (item) => {
+    const id = item?.id ?? item?.asin ?? item?.sku;
+    if (favs?.remove) favs.remove(id);
+    else if (favs?.toggle) favs.toggle(item);
+  };
+
+  // Simple “heart” that does NOT require vector-icon fonts
+  const Heart = ({ size = 20, color }) => (
+    <Text style={{ fontSize: size, color, includeFontPadding: false }}>❤</Text>
+  );
+
+  // Fallback card if FavoriteCard not found
   const renderFallbackCard = ({ item }) => {
-    const isFav = typeof favs?.isFavorite === 'function'
-      ? favs.isFavorite(item?.id ?? item?.asin ?? item?.sku)
-      : true;
-
-    const removeOne = () => {
-      // try common method names without breaking if missing
-      favs?.remove?.(item?.id ?? item?.asin ?? item?.sku);
-      favs?.toggle?.(item); // some contexts use toggle
-    };
-
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.card ?? '#fff' }]}
+        onPress={() => nav.navigate('ProductDetails', { product: item })}
+        activeOpacity={0.85}
+      >
         {item?.image ? (
           <Image source={{ uri: item.image }} style={styles.thumb} />
         ) : (
@@ -51,78 +64,129 @@ export default function Favorites() {
         )}
 
         <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={styles.title}>
+          <Text numberOfLines={1} style={[styles.title, { color: colors.text }]}>
             {item?.title ?? 'Saved item'}
           </Text>
           {!!item?.brand && (
-            <Text numberOfLines={1} style={styles.brand}>
+            <Text numberOfLines={1} style={[styles.brand, { color: colors.mute }]}>
               {item.brand}
             </Text>
           )}
         </View>
 
-        <TouchableOpacity onPress={removeOne} hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}>
-          <FontAwesome5
-            name={isFav ? 'heart' : 'heart'}
-            size={18}
-            color={isFav ? '#E53935' : '#E53935'}
-          />
+        <TouchableOpacity
+          onPress={() => removeFavorite(item)}
+          hitSlop={{ top: 12, left: 12, right: 12, bottom: 12 }}
+          style={{ paddingLeft: 10, paddingVertical: 6 }}
+        >
+          <Heart size={20} color={colors.heart ?? '#E53935'} />
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     );
   };
 
-  const renderItem = (args) =>
-    FavoriteCard ? <FavoriteCard {...args} onPress={() => {}} /> : renderFallbackCard(args);
+  // Use custom FavoriteCard if exists, else fallback
+  const renderItem = ({ item }) =>
+    FavoriteCard ? (
+      <FavoriteCard
+        item={item}
+        onPress={() => nav.navigate('ProductDetails', { product: item })}
+        onRemove={() => removeFavorite(item)}
+        heartColor={colors.heart}
+      />
+    ) : (
+      renderFallbackCard({ item })
+    );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-        <Text style={styles.header}>Favorites</Text>
-        <Text style={styles.sub}>Your saved shades & products</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={styles.headerContainer}>
+        <Text style={[styles.header, { color: colors.text }]}>Favorites</Text>
+        <Text style={[styles.sub, { color: colors.mute }]}>
+          Your saved shades & products
+        </Text>
       </View>
 
       {items.length === 0 ? (
         <View style={styles.emptyWrap}>
-          <FontAwesome5 name="heart" size={28} color="#bbb" style={{ marginBottom: 8 }} />
-          <Text style={styles.emptyTitle}>No favorites yet</Text>
-          <Text style={styles.emptyText}>Tap the heart on any product to save it here.</Text>
+          <Text style={{ fontSize: 34, marginBottom: 12, color: '#ccc' }}>❤</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No favorites yet</Text>
+          <Text style={[styles.emptyText, { color: colors.mute }]}>
+            Tap the heart on any product to save it here.
+          </Text>
         </View>
       ) : (
         <FlatList
           data={items}
           keyExtractor={(it, idx) => String(it?.id ?? it?.asin ?? it?.sku ?? idx)}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>
   );
 }
 
+// ────── STYLES ──────
 const styles = StyleSheet.create({
-  header: { fontSize: 28, fontWeight: '800', color: '#111' },
-  sub: { color: '#7A7A7A', marginTop: 4 },
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  header: {
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  sub: {
+    marginTop: 4,
+    fontSize: 15,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
     shadowColor: '#000',
     shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    elevation: 3,
+    marginHorizontal: 2,
   },
-  thumb: { width: 48, height: 48, borderRadius: 10, marginRight: 12 },
-  thumbPlaceholder: { backgroundColor: '#F0F0F0' },
-  title: { fontSize: 16, fontWeight: '700', color: '#111' },
-  brand: { fontSize: 13, color: '#666', marginTop: 2 },
+  thumb: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    marginRight: 14,
+  },
+  thumbPlaceholder: {
+    backgroundColor: '#F0F0F0',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  brand: {
+    fontSize: 13,
+    marginTop: 2,
+  },
   emptyWrap: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#333' },
-  emptyText: { marginTop: 6, color: '#7A7A7A', textAlign: 'center' },
+  emptyTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  emptyText: {
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 });
