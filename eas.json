@@ -7,9 +7,8 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
+      "buildType": "apk",
+      "node": "22.20.0",
       "env": {
         "EAS_SKIP_AUTO_FINGERPRINT": "1",
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
@@ -20,9 +19,9 @@
       "autoIncrement": true,
       "distribution": "store",
       "android": {
-        "buildType": "app-bundle",
-        "gradleCommand": "app:bundleRelease"
+        "buildType": "app-bundle"
       },
+      "node": "22.20.0",
       "env": {
         "EAS_PUBLIC_ENV": "production"
       }
