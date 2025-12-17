@@ -7,7 +7,6 @@ export default ({ config }) => {
     plugins: [
       ...(config.plugins ?? []),
 
-      // ✅ Only enable VisionCamera plugin in EAS cloud builds
       ...(isEAS
         ? [
             [
@@ -16,7 +15,8 @@ export default ({ config }) => {
                 cameraPermissionText: 'Allow $(PRODUCT_NAME) to access your camera',
                 enableFrameProcessors: true
               }
-            ]
+            ],
+            'expo-video'
           ]
         : [])
     ]

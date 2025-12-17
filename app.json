@@ -45,8 +45,7 @@
     "plugins": [
       "expo-localization",
       "expo-secure-store",
-      "expo-asset",
-      "expo-video"
+      "expo-asset"
     ]
   }
 }
