@@ -15,9 +15,7 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.luxwave.omnitintai"
@@ -47,15 +45,7 @@
     "plugins": [
       "expo-localization",
       "expo-secure-store",
-      "expo-mail-composer",
       "expo-asset",
-      [
-        "react-native-vision-camera",
-        {
-          "cameraPermissionText": "Allow $(PRODUCT_NAME) to access your camera",
-          "enableFrameProcessors": true
-        }
-      ],
       "expo-video"
     ]
   }

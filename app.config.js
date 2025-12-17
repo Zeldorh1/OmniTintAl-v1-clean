@@ -1,18 +1,24 @@
+// client/app.config.js
 export default ({ config }) => {
   const isEAS = process.env.EAS_BUILD === 'true';
 
   return {
     ...config,
-
     plugins: [
+      ...(config.plugins ?? []),
+
+      // ✅ Only enable VisionCamera plugin in EAS cloud builds
       ...(isEAS
         ? [
-            // ✅ ENABLE ONLY IN CLOUD
-            'react-native-vision-camera',
+            [
+              'react-native-vision-camera',
+              {
+                cameraPermissionText: 'Allow $(PRODUCT_NAME) to access your camera',
+                enableFrameProcessors: true
+              }
+            ]
           ]
-        : [
-            // ❌ DISABLE LOCALLY (Termux-safe)
-          ]),
-    ],
+        : [])
+    ]
   };
 };
