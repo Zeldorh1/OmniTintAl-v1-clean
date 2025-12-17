@@ -1,18 +1,19 @@
 {
   "cli": {
-    "version": ">=3.23.0",
-    "appVersionSource": "remote"
+    "version": ">= 3.23.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "buildType": "apk",
-      "node": "22.20.0",
+      "android": {
+        "buildType": "apk"
+      },
+      "node": "20.19.4",
       "env": {
+        "NODE_ENV": "development",
         "EAS_SKIP_AUTO_FINGERPRINT": "1",
-        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
-        "NODE_ENV": "development"
+        "EAS_NO_LOCAL_CONFIG": "1"
       }
     },
     "production": {
@@ -21,7 +22,7 @@
       "android": {
         "buildType": "app-bundle"
       },
-      "node": "22.20.0",
+      "node": "20.19.4",
       "env": {
         "EAS_PUBLIC_ENV": "production"
       }
