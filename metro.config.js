@@ -1,22 +1,37 @@
-console.log('✅ METRO CONFIG LOADED');
 // client/metro.config.js
+console.log('✅ METRO CONFIG LOADED');
+
 const path = require('path');
 const { getDefaultConfig } = require('@expo/metro-config');
 
 const projectRoot = __dirname;
 const config = getDefaultConfig(projectRoot);
 
-// ✅ Keep your SVG setup (if you use SVGs)
-config.transformer.babelTransformerPath = require.resolve('react-native-svg-transformer');
-config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
-config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg', 'ts', 'tsx'];
+// ✅ Always keep TS/TSX
+config.resolver.sourceExts = Array.from(
+  new Set([...(config.resolver.sourceExts || []), 'ts', 'tsx'])
+);
+
+// ✅ Optional SVG transformer (only enable if installed)
+try {
+  require.resolve('react-native-svg-transformer');
+
+  config.transformer.babelTransformerPath = require.resolve('react-native-svg-transformer');
+
+  config.resolver.assetExts = (config.resolver.assetExts || []).filter((ext) => ext !== 'svg');
+  config.resolver.sourceExts = Array.from(new Set([...(config.resolver.sourceExts || []), 'svg']));
+
+  console.log('✅ SVG transformer enabled');
+} catch (e) {
+  console.log('⚠️ SVG transformer not installed — skipping SVG setup');
+}
 
 // ✅ Keep your 3D/video asset support
-config.resolver.assetExts = [
-  ...new Set([...config.resolver.assetExts, 'glb', 'gltf', 'bin', 'mp4', 'mov', 'm4v', 'avi']),
-];
+config.resolver.assetExts = Array.from(
+  new Set([...(config.resolver.assetExts || []), 'glb', 'gltf', 'bin', 'mp4', 'mov', 'm4v'])
+);
 
-// ✅ THE FIX: Metro alias map (so @context/* resolves)
+// ✅ Keep your alias map exactly like you had it
 config.resolver.extraNodeModules = {
   '@components': path.resolve(projectRoot, 'src/components'),
   '@context': path.resolve(projectRoot, 'src/context'),
@@ -26,7 +41,7 @@ config.resolver.extraNodeModules = {
   '@theme': path.resolve(projectRoot, 'src/theme'),
   '@utils': path.resolve(projectRoot, 'src/utils'),
   '@assets': path.resolve(projectRoot, 'assets'),
-'@icons': path.resolve(projectRoot, 'assets/icons'),
+  '@icons': path.resolve(projectRoot, 'assets/icons'),
 };
 
 module.exports = config;
