@@ -3,6 +3,7 @@
     "version": ">= 3.23.0",
     "appVersionSource": "remote"
   },
+
   "build": {
     "development": {
       "developmentClient": true,
@@ -12,10 +13,10 @@
         "buildType": "apk"
       },
       "env": {
-        "NODE_ENV": "development",
         "EAS_BUILD_WORKINGDIR": "client"
       }
     },
+
     "production": {
       "distribution": "store",
       "autoIncrement": true,
@@ -24,7 +25,6 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "NODE_ENV": "production",
         "EAS_BUILD_WORKINGDIR": "client"
       }
     }
