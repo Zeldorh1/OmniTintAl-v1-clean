@@ -1,4 +1,3 @@
-// client/app.config.js
 export default ({ config }) => {
   const isEAS = process.env.EAS_BUILD === 'true';
 
@@ -15,8 +14,8 @@ export default ({ config }) => {
                 cameraPermissionText: 'Allow $(PRODUCT_NAME) to access your camera',
                 enableFrameProcessors: true
               }
-            ],
-            'expo-video'
+            ]
+            // Removed 'expo-video' — it doesn't exist!
           ]
         : [])
     ]
