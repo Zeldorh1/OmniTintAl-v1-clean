@@ -3,29 +3,29 @@
     "version": ">= 3.23.0",
     "appVersionSource": "remote"
   },
+
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "node": "20.19.4",
       "android": {
         "buildType": "apk"
       },
-      "node": "20.19.4",
       "env": {
-        "NODE_ENV": "development",
-        "EAS_SKIP_AUTO_FINGERPRINT": "1",
-        "EAS_NO_LOCAL_CONFIG": "1"
+        "NODE_ENV": "development"
       }
     },
+
     "production": {
-      "autoIncrement": true,
       "distribution": "store",
+      "autoIncrement": true,
+      "node": "20.19.4",
       "android": {
         "buildType": "app-bundle"
       },
-      "node": "20.19.4",
       "env": {
-        "EAS_PUBLIC_ENV": "production"
+        "NODE_ENV": "production"
       }
     }
   }

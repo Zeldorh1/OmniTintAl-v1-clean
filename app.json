@@ -1,47 +1,54 @@
 {
   "expo": {
     "name": "OmniTintAI",
-    "slug": "omnitintal-1",
+    "slug": "omnitintai",
     "scheme": "omnitintai",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+
     "updates": {
       "fallbackToCacheTimeout": 0
     },
+
     "assetBundlePatterns": ["**/*"],
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.luxwave.omnitintai"
     },
+
     "android": {
+      "package": "com.luxwave.omnitintai",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.luxwave.omnitintai",
-      "versionCode": 1,
       "permissions": [
         "CAMERA",
         "VIBRATE",
-        "USE_FINGERPRINT",
         "USE_BIOMETRIC",
         "POST_NOTIFICATIONS"
       ],
       "newArchEnabled": false
     },
+
     "extra": {
       "eas": {
         "projectId": "03626165-4b98-4166-a6d6-24c4ee7fe0c8"
       }
     },
+
     "owner": "zeldorh",
+
     "plugins": [
       "expo-localization",
       "expo-secure-store",
