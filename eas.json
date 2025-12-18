@@ -1,15 +1,20 @@
 {
-  "cli": { "version": ">= 3.23.0" },
+  "cli": {
+    "version": ">= 3.23.0"
+  },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
       "distribution": "store",
-      "android": { "buildType": "app-bundle" }
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   }
 }
-\n// cache-bust Thu Dec 18 13:18:26 EST 2025
