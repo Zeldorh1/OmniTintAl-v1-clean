@@ -1,6 +1,6 @@
-// src/screens/LoginScreen.js — FLAGSHIP AUTH + PREMIUM BRANDING
+// client/src/screens/LoginScreen.js — FLAGSHIP AUTH (Phone + Email panels, collapsed by default)
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,43 +13,67 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+
+// OPTIONAL: If you want the MP4 behind the login, uncomment these 2 lines
+import { Video } from 'expo-av';
+
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
 
-  const { user, loading, signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
+  // Auth can be partially implemented — we guard everything
+  const auth = useAuth?.() || {};
+  const user = auth.user;
+  const loading = !!auth.loading;
 
-  const [showEmailForm, setShowEmailForm] = useState(false);
+  const signInWithEmail = auth.signInWithEmail;
+  const signUpWithEmail = auth.signUpWithEmail;
+
+  // Phone auth may not exist yet — we will provide a safe fallback
+  const signInWithPhone = auth.signInWithPhone;
+
+  // Panels
+  const [activePanel, setActivePanel] = useState(null); // 'phone' | 'email' | null
+
+  // Email inputs
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Phone inputs (placeholder UI for now)
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [phoneStep, setPhoneStep] = useState('enter'); // 'enter' | 'verify'
+
+  const showEmailForm = activePanel === 'email';
+  const showPhoneForm = activePanel === 'phone';
 
   // Animations
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
     ]).start();
   }, []);
 
   // If already signed in, jump to MainTabs
   useEffect(() => {
-    if (user) {
-      navigation.replace('MainTabs');
-    }
+    if (user) navigation.replace('MainTabs');
   }, [user, navigation]);
 
-  const handleEmailPress = () => setShowEmailForm(true);
+  const openTerms = () => Linking.openURL('https://luxwavelabs.com/terms').catch(() => {});
+  const openPrivacy = () => Linking.openURL('https://luxwavelabs.com/privacy').catch(() => {});
 
+  const togglePanel = (which) => {
+    setActivePanel((prev) => (prev === which ? null : which));
+  };
+
+  const goMain = () => navigation.replace('MainTabs');
+
+  // ─────────────────────────────────────────
+  // EMAIL FLOW (real if functions exist, else fallback to not stuck)
+  // ─────────────────────────────────────────
   const handleEmailSubmit = async () => {
     const trimmedEmail = email.trim();
 
@@ -58,65 +82,115 @@ export default function LoginScreen({ navigation }) {
       return;
     }
 
-    try {
-      // Try sign in first
-      await signInWithEmail(trimmedEmail, password);
-    } catch (err) {
-      const code = err?.code || '';
+    // If auth funcs not wired yet, don’t trap user
+    if (typeof signInWithEmail !== 'function' || typeof signUpWithEmail !== 'function') {
+      Alert.alert(
+        'Email login not wired yet',
+        'Email auth is not connected in AuthContext yet — continuing to app for now.',
+        [{ text: 'OK', onPress: goMain }]
+      );
+      return;
+    }
 
-      if (code === 'auth/user-not-found') {
-        Alert.alert(
-          'Create account?',
-          'No account found for this email. Create a new one?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Create',
-              onPress: async () => {
-                try {
-                  await signUpWithEmail(trimmedEmail, password);
-                } catch (inner) {
-                  Alert.alert('Sign up failed', inner?.message || 'Please try again.');
-                }
-              },
+    try {
+      await signInWithEmail(trimmedEmail, password);
+      // if sign-in works, user effect routes
+    } catch (err) {
+      const codeErr = err?.code || '';
+      if (codeErr === 'auth/user-not-found') {
+        Alert.alert('Create account?', 'No account found for this email. Create a new one?', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Create',
+            onPress: async () => {
+              try {
+                await signUpWithEmail(trimmedEmail, password);
+              } catch (inner) {
+                Alert.alert('Sign up failed', inner?.message || 'Please try again.');
+              }
             },
-          ]
-        );
+          },
+        ]);
       } else {
         Alert.alert('Sign in failed', err?.message || 'Please try again.');
       }
     }
   };
 
-  const handleGoogle = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (err) {
+  // ─────────────────────────────────────────
+  // PHONE FLOW (placeholder UI; real if function exists)
+  // ─────────────────────────────────────────
+  const handlePhoneStart = async () => {
+    const trimmed = phone.trim();
+    if (!trimmed) {
+      Alert.alert('Missing phone', 'Please enter your phone number.');
+      return;
+    }
+
+    // If not wired yet, don’t trap user
+    if (typeof signInWithPhone !== 'function') {
       Alert.alert(
-        'Google sign-in',
-        err?.message ||
-          'Google sign-in is not fully configured yet. Please try email login for now.'
+        'Phone login not wired yet',
+        'Phone auth isn’t connected yet — continuing to app for now.',
+        [{ text: 'OK', onPress: goMain }]
       );
+      return;
+    }
+
+    try {
+      // Expected: signInWithPhone(phone) sends code
+      await signInWithPhone(trimmed);
+      setPhoneStep('verify');
+    } catch (err) {
+      Alert.alert('Phone sign-in failed', err?.message || 'Please try again.');
     }
   };
 
-  const openTerms = () =>
-    Linking.openURL('https://luxwavelabs.com/terms').catch(() => {});
-  const openPrivacy = () =>
-    Linking.openURL('https://luxwavelabs.com/privacy').catch(() => {});
+  const handlePhoneVerify = async () => {
+    if (!code.trim()) {
+      Alert.alert('Missing code', 'Enter the verification code.');
+      return;
+    }
+
+    // If your real implementation needs verify step, you’ll add it in AuthContext.
+    // For now, if signInWithPhone exists we assume it handles internally.
+    Alert.alert('Not implemented', 'Phone verification step will be wired next.', [
+      { text: 'OK', onPress: goMain },
+    ]);
+  };
+
+  // ─────────────────────────────────────────
+  // Background media (MP4 behind login)
+  // ─────────────────────────────────────────
+  const Background = useMemo(() => {
+    // ✅ If you want MP4 behind the login, keep this Video enabled.
+    // Ensure the path is correct:
+    // client/assets/HairAppStartup.mp4  -> require('../../assets/HairAppStartup.mp4')
+    return (
+      <Video
+        source={require('../../assets/HairAppStartup.mp4')}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+        shouldPlay
+        isLooping
+        isMuted
+      />
+    );
+  }, []);
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.select({ ios: 'padding', android: undefined })}
     >
+      {/* VIDEO BEHIND EVERYTHING */}
+      <View style={StyleSheet.absoluteFill}>{Background}</View>
+
+      {/* Dark overlay */}
       <Animated.View
         style={[
           styles.overlay,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
         ]}
       >
         {/* Brand lockup */}
@@ -130,9 +204,88 @@ export default function LoginScreen({ navigation }) {
 
         {/* Auth options */}
         <View style={styles.bottomSection}>
+          {/* PHONE BUTTON (TOP) */}
           <TouchableOpacity
             style={styles.buttonOutline}
-            onPress={handleEmailPress}
+            onPress={() => togglePanel('phone')}
+            disabled={loading}
+          >
+            <Text style={styles.buttonOutlineText}>
+              {showPhoneForm ? 'Use Phone Below' : 'Continue with phone'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* PHONE PANEL (collapsed by default) */}
+          {showPhoneForm && (
+            <View style={styles.emailCard}>
+              <Text style={styles.emailTitle}>
+                {phoneStep === 'enter' ? 'Enter your phone number' : 'Enter verification code'}
+              </Text>
+
+              {phoneStep === 'enter' ? (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Phone number"
+                    placeholderTextColor="#AAAAAA"
+                    keyboardType="phone-pad"
+                    value={phone}
+                    onChangeText={setPhone}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={handlePhoneStart}
+                    disabled={loading}
+                  >
+                    <Text style={styles.primaryBtnText}>
+                      {loading ? 'Please wait…' : 'Send code'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.helper}>
+                    We’ll text you a verification code.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Verification code"
+                    placeholderTextColor="#AAAAAA"
+                    keyboardType="number-pad"
+                    value={code}
+                    onChangeText={setCode}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={handlePhoneVerify}
+                    disabled={loading}
+                  >
+                    <Text style={styles.primaryBtnText}>
+                      {loading ? 'Please wait…' : 'Verify & Continue'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.linkBtn]}
+                    onPress={() => {
+                      setPhoneStep('enter');
+                      setCode('');
+                    }}
+                  >
+                    <Text style={styles.linkBtnText}>Use a different number</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+
+          {/* EMAIL BUTTON (BOTTOM) */}
+          <TouchableOpacity
+            style={styles.buttonOutline}
+            onPress={() => togglePanel('email')}
             disabled={loading}
           >
             <Text style={styles.buttonOutlineText}>
@@ -140,14 +293,7 @@ export default function LoginScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.buttonOutline}
-            onPress={handleGoogle}
-            disabled={loading}
-          >
-            <Text style={styles.buttonOutlineText}>Continue with Google</Text>
-          </TouchableOpacity>
-
+          {/* EMAIL PANEL (collapsed by default) */}
           {showEmailForm && (
             <View style={styles.emailCard}>
               <Text style={styles.emailTitle}>Sign in or create an account</Text>
@@ -206,6 +352,7 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },
+
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
@@ -215,9 +362,7 @@ const styles = StyleSheet.create({
   },
 
   topSection: { justifyContent: 'center', alignItems: 'center' },
-  brandRow: {
-    flexDirection: 'row',
-  },
+  brandRow: { flexDirection: 'row' },
   brandText: {
     fontSize: 34,
     fontWeight: '900',
@@ -228,7 +373,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     marginLeft: 3,
-    marginTop: -4, // soft superscript effect
+    marginTop: -4,
   },
   subtitle: {
     fontSize: 18,
@@ -306,4 +451,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   link: { color: '#FFD700', textDecorationLine: 'underline' },
+
+  linkBtn: { marginTop: 10, alignSelf: 'flex-start' },
+  linkBtnText: { color: '#FFD700', textDecorationLine: 'underline', fontSize: 12 },
 });

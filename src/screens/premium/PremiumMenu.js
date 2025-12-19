@@ -1,5 +1,5 @@
 // client/src/screens/premium/PremiumMenu.js
-// FINAL · PREMIUM HAMBURGER MENU · 68% WIDTH · NO FONT ICONS
+// SAME DESIGN — now a true overlay + contained list + correct Premium stack navigation
 
 import React, { useEffect, useRef } from "react";
 import {
@@ -11,6 +11,7 @@ import {
   Dimensions,
   Image,
   Platform,
+  ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Icon } from "../../components/Icons";
@@ -35,17 +36,23 @@ export default function PremiumMenu() {
       Animated.timing(translateX, { toValue: MENU_WIDTH, duration: 220, useNativeDriver: true }),
       Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
     ]).start(() => {
-      // ✅ If we're in a stack, goBack.
-      // ✅ If we're on the Menu tab with nowhere to goBack, hop to Home tab.
-      const canGoBack = nav?.canGoBack?.() === true;
-      if (canGoBack) nav.goBack();
-      else nav.getParent()?.navigate?.("Home");
+      // ✅ as an overlay modal, goBack returns to the exact screen underneath
+      if (nav?.canGoBack?.()) nav.goBack();
+      else nav.getParent?.()?.navigate?.("Home");
     });
   };
 
+  // ✅ IMPORTANT: route into PremiumNavigator (nested)
   const go = (route) => {
-    close();
-    setTimeout(() => nav.navigate(route), 140);
+    Animated.parallel([
+      Animated.timing(translateX, { toValue: MENU_WIDTH, duration: 180, useNativeDriver: true }),
+      Animated.timing(backdrop, { toValue: 0, duration: 160, useNativeDriver: true }),
+    ]).start(() => {
+      if (nav?.canGoBack?.()) nav.goBack();
+      setTimeout(() => {
+        nav.navigate("Premium", { screen: route });
+      }, 60);
+    });
   };
 
   const Item = ({ label, route, image, icon }) => (
@@ -58,7 +65,11 @@ export default function PremiumMenu() {
     >
       <View style={s.left}>
         <View style={s.iconWrap}>
-          {image ? <Image source={image} style={s.iconImg} /> : <Icon name={icon} size={18} color="#111" />}
+          {image ? (
+            <Image source={image} style={s.iconImg} />
+          ) : (
+            <Icon name={icon} size={18} color="#111" />
+          )}
         </View>
         <Text style={s.label}>{label}</Text>
       </View>
@@ -75,20 +86,26 @@ export default function PremiumMenu() {
       <Animated.View style={[s.drawer, { transform: [{ translateX }] }]}>
         <Text style={s.title}>Premium</Text>
 
-        <Item label="AR Try-On" route="ARStudioMainV2" image={require("../../../assets/icons/ar_tryon.png")} />
-        <Item label="360° Preview" route="AR360PreviewScreen" image={require("../../../assets/icons/tryon360.png")} />
-        <Item label="Hair Health Scanner" route="HairHealthScannerScreen" image={require("../../../assets/icons/hair_scanner.png")} />
-        <Item label="Hair Mixer Pro" route="HairMixerPro" image={require("../../../assets/icons/hair_mixer.png")} />
-        <Item label="AI Styles" route="AIStylesScreen" image={require("../../../assets/icons/ai_styles.png")} />
-        <Item label="Compare Products" route="CompareProductsScreen" image={require("../../../assets/icons/compare_products.png")} />
-        <Item label="Trend Radar" route="TrendRadar" image={require("../../../assets/icons/trend_radar.png")} />
-        <Item label="AI Chat" route="AIChatScreen" image={require("../../../assets/icons/ai_chat.png")} />
-        <Item label="Progress Tracker" route="ProgressTrackerScreen" image={require("../../../assets/icons/progress_tracker.png")} />
-        <Item label="Settings" route="SettingsScreen" icon="settings" />
+        {/* ✅ containment fix — keeps Settings inside the drawer */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 18 }}
+        >
+          <Item label="AR Try-On" route="ARStudioMainV2" image={require("../../../assets/icons/ar_tryon.png")} />
+          <Item label="360° Preview" route="AR360PreviewScreen" image={require("../../../assets/icons/tryon360.png")} />
+          <Item label="Hair Health Scanner" route="HairHealthScannerScreen" image={require("../../../assets/icons/hair_scanner.png")} />
+          <Item label="Hair Mixer Pro" route="HairMixerPro" image={require("../../../assets/icons/hair_mixer.png")} />
+          <Item label="AI Styles" route="AIStylesScreen" image={require("../../../assets/icons/ai_styles.png")} />
+          <Item label="Compare Products" route="CompareProductsScreen" image={require("../../../assets/icons/compare_products.png")} />
+          <Item label="Trend Radar" route="TrendRadar" image={require("../../../assets/icons/trend_radar.png")} />
+          <Item label="AI Chat" route="AIChatScreen" image={require("../../../assets/icons/ai_chat.png")} />
+          <Item label="Progress Tracker" route="ProgressTrackerScreen" image={require("../../../assets/icons/progress_tracker.png")} />
+          <Item label="Settings" route="SettingsScreen" icon="settings" />
 
-        <Pressable onPress={close} style={s.closeBtn}>
-          <Text style={s.closeTxt}>Close</Text>
-        </Pressable>
+          <Pressable onPress={close} style={s.closeBtn}>
+            <Text style={s.closeTxt}>Close</Text>
+          </Pressable>
+        </ScrollView>
       </Animated.View>
     </View>
   );

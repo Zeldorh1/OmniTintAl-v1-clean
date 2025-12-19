@@ -1,4 +1,4 @@
-// src/screens/StartupScreen.js — FINAL FLAGSHIP STARTUP
+// client/src/screens/StartupScreen.js — FINAL FLAGSHIP STARTUP (VIDEO FIXED)
 
 import React, { useRef, useEffect, useCallback } from 'react';
 import { StyleSheet, View, Text, TouchableWithoutFeedback } from 'react-native';
@@ -26,19 +26,21 @@ export default function StartupScreen() {
   }, [nav, user]);
 
   useEffect(() => {
-    if (initializing) return; // wait for Firebase to resolve user
+    if (initializing) return; // wait for auth to resolve
 
     if (!showIntro) {
       goNext();
       return;
     }
 
-    const timer = setTimeout(goNext, 3200); // just over the video length
+    const timer = setTimeout(() => {
+      goNext();
+    }, 3200); // just over the video length
+
     return () => clearTimeout(timer);
   }, [initializing, showIntro, goNext]);
 
   const handleTap = () => {
-    // Tap anywhere → skip intro immediately
     goNext();
   };
 
@@ -47,7 +49,6 @@ export default function StartupScreen() {
       <View style={styles.container}>
         <StatusBar style="light" />
 
-        {/* Background video */}
         <Video
           ref={videoRef}
           source={require('../../assets/HairAppStartup.mp4')}
@@ -55,9 +56,11 @@ export default function StartupScreen() {
           resizeMode="cover"
           shouldPlay={showIntro}
           isLooping={false}
+          isMuted={false}
+          onError={(e) => console.log('🎬 Startup video error:', e)}
+          onReadyForDisplay={() => console.log('🎬 Startup video ready')}
         />
 
-        {/* Overlay logo + tagline */}
         <View style={styles.overlay}>
           <Text style={styles.logoText}>
             OmniTintAI<Text style={styles.registered}>®</Text>
@@ -71,17 +74,8 @@ export default function StartupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000', // fallback if video fails
-  },
-  video: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
+  container: { flex: 1, backgroundColor: '#000' },
+  video: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   overlay: {
     flex: 1,
     justifyContent: 'center',
@@ -94,20 +88,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: 0.5,
   },
-  registered: {
-    fontSize: 16,
-    verticalAlign: 'top',
-  },
-  tagline: {
-    marginTop: 10,
-    color: '#E5E7EB',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  hint: {
-    position: 'absolute',
-    bottom: 40,
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
+  registered: { fontSize: 16, textAlignVertical: 'top' },
+  tagline: { marginTop: 10, color: '#E5E7EB', fontSize: 14, textAlign: 'center' },
+  hint: { position: 'absolute', bottom: 40, color: '#9CA3AF', fontSize: 12 },
 });

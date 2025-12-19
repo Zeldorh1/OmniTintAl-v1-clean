@@ -1,10 +1,11 @@
-// client/src/screens/premium/SettingsScreenPro.js
+// client/src/screens/premium/SettingsScreen.js
+// NO-SVG DROP-IN (fixes: “Element type is invalid… got number”)
+
 import React, { useMemo, useState } from "react";
 import {
   Alert,
   Linking,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -14,14 +15,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-
-import GrokLogo from "../../../assets/grok-logo.svg";
-import Robot from "../../../assets/robot.svg";
-import Search from "../../../assets/icons/search.svg";
-import Zap from "../../../assets/icons/zap.svg";
-import ShoppingCart from "../../../assets/icons/shopping-cart.svg";
-import Rocket from "../../../assets/icons/rocket.svg";
-import Atom from "../../../assets/icons/atom.svg";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import * as MailComposer from "expo-mail-composer";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -53,21 +47,21 @@ function Row({ left, right }) {
   );
 }
 
-function ToggleRow({ title, subtitle, value, onValueChange }) {
-  return (
-    <Row
-      left={<Label title={title} subtitle={subtitle} />}
-      right={<Switch value={value} onValueChange={onValueChange} />}
-    />
-  );
-}
-
 function Label({ title, subtitle }) {
   return (
     <View>
       <Text style={s.rowTitle}>{title}</Text>
       {!!subtitle && <Text style={s.rowSub}>{subtitle}</Text>}
     </View>
+  );
+}
+
+function ToggleRow({ title, subtitle, value, onValueChange }) {
+  return (
+    <Row
+      left={<Label title={title} subtitle={subtitle} />}
+      right={<Switch value={value} onValueChange={onValueChange} />}
+    />
   );
 }
 
@@ -128,9 +122,17 @@ function TextBadge({ label }) {
   );
 }
 
-export default function SettingsScreenPro({ navigation }) {
+function LogoTile({ label, onPress }) {
+  return (
+    <TouchableOpacity style={s.lib} onPress={onPress}>
+      <TextBadge label={label} />
+    </TouchableOpacity>
+  );
+}
+
+export default function SettingsScreenPro() {
   const { width } = useWindowDimensions();
-  const isSmall = width < 380; // kept if you ever want size-based tweaks
+  const isSmall = width < 380;
 
   const { settings, update, resetAll } = useSettings();
   const [reportText, setReportText] = useState("");
@@ -141,7 +143,6 @@ export default function SettingsScreenPro({ navigation }) {
   const subText = colors.subtext;
   const cardBg = colors.card;
 
-  // Guard so this never crashes if account isn't initialized yet
   const account = settings?.account ?? { signedIn: false, userId: null, email: null };
 
   const signIn = () => {
@@ -219,7 +220,6 @@ export default function SettingsScreenPro({ navigation }) {
     }
   };
 
-  // Final, safe problem-report handler
   const sendReport = async () => {
     const body = reportText.trim() || "(empty)";
     try {
@@ -265,7 +265,6 @@ export default function SettingsScreenPro({ navigation }) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Text style={[s.h1, { color: text }]}>Settings</Text>
 
-        {/* ACCOUNT */}
         <Section title="Account">
           <Row
             left={
@@ -287,28 +286,27 @@ export default function SettingsScreenPro({ navigation }) {
           />
         </Section>
 
-        {/* PRIVACY & SECURITY */}
         <Section title="Privacy & Security">
           <ToggleRow
             title="Voice wake (“Hey Omni”)"
-            value={settings.voiceWakeEnabled}
+            value={!!settings.voiceWakeEnabled}
             onValueChange={(v) => update({ voiceWakeEnabled: v })}
           />
           <ToggleRow
             title="Microphone access"
-            value={settings.microphoneEnabled}
+            value={!!settings.microphoneEnabled}
             onValueChange={(v) => update({ microphoneEnabled: v })}
           />
           <ToggleRow
             title="Share anonymized usage stats"
             subtitle="Off by default. We never upload photos."
-            value={settings.shareAnonymizedStats}
+            value={!!settings.shareAnonymizedStats}
             onValueChange={(v) => update({ shareAnonymizedStats: v })}
           />
           <ToggleRow
             title="Biometric lock"
             subtitle="Require Face/Touch ID"
-            value={settings.biometricLock}
+            value={!!settings.biometricLock}
             onValueChange={toggleBiometric}
           />
           <Row
@@ -317,16 +315,14 @@ export default function SettingsScreenPro({ navigation }) {
           />
         </Section>
 
-        {/* NOTIFICATIONS */}
         <Section title="Notifications">
           <ToggleRow
             title="Enable notifications"
-            value={settings.notificationsEnabled}
+            value={!!settings.notificationsEnabled}
             onValueChange={toggleNotifications}
           />
         </Section>
 
-        {/* APPEARANCE */}
         <Section title="Appearance">
           <Row
             left={<Label title="Theme" subtitle="Light or Dark" />}
@@ -334,7 +330,7 @@ export default function SettingsScreenPro({ navigation }) {
           />
 
           <Text style={[s.label, { color: text, marginTop: 16 }]}>Background color</Text>
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
             {["#FFFFFF", "#F6F6F6", "#EFEFEF", "#FFFAF2", "#F2FAFF", "#F9F1FF"].map((c) => (
               <TouchableOpacity
                 key={c}
@@ -352,7 +348,7 @@ export default function SettingsScreenPro({ navigation }) {
           </View>
 
           <Text style={[s.label, { color: text, marginTop: 16 }]}>Heart color</Text>
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
             {HEART_SWATCHES.map((c) => (
               <TouchableOpacity
                 key={c}
@@ -370,7 +366,6 @@ export default function SettingsScreenPro({ navigation }) {
           </View>
         </Section>
 
-        {/* REPORT A PROBLEM */}
         <Section title="Report a problem">
           <TextInput
             value={reportText}
@@ -383,7 +378,6 @@ export default function SettingsScreenPro({ navigation }) {
           <PrimaryBtn text="Send report via email" onPress={sendReport} />
         </Section>
 
-        {/* CREDITS */}
         <Section title="Credits">
           <View style={[s.credits, { backgroundColor: cardBg }]}>
             <Text style={[s.appName, { color: text }]}>OmniTintAI</Text>
@@ -399,51 +393,14 @@ export default function SettingsScreenPro({ navigation }) {
             <Text style={[s.poweredTitle, { color: text, marginTop: 24 }]}>Powered by</Text>
 
             <View style={s.grid}>
-              <TouchableOpacity style={s.lib} onPress={() => open("https://x.ai")}>
-                <GrokLogo width={36} height={36} />
-                <Text style={[s.libName, { color: subText }]}>Grok AI</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.lib} onPress={() => open("https://openai.com")}>
-                <Robot width={30} height={30} fill={text} />
-                <Text style={[s.libName, { color: subText }]}>ChatGPT</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.lib} onPress={() => open("https://cloudflare.com")}>
-                <Zap width={30} height={30} fill={text} />
-                <Text style={[s.libName, { color: subText }]}>Cloudflare</Text>
-              </TouchableOpacity>
-
-              {/* Leonardo.ai — no vector icons, keep credits */}
-              <TouchableOpacity style={s.lib} onPress={() => open("https://leonardo.ai")}>
-                <TextBadge label="AI" />
-                <Text style={[s.libName, { color: subText }]}>Leonardo.ai</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.lib} onPress={() => open("https://affiliate-program.amazon.com")}>
-                <ShoppingCart width={30} height={30} stroke={text} />
-                <Text style={[s.libName, { color: subText }]}>Amazon PA-API</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.lib} onPress={() => open("https://threejs.org")}>
-                <Atom width={30} height={30} stroke={text} />
-                <Text style={[s.libName, { color: subText }]}>Three.js</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.lib} onPress={() => open("https://mediapipe.dev")}>
-                <Search width={30} height={30} stroke={text} />
-                <Text style={[s.libName, { color: subText }]}>MediaPipe</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.lib} onPress={() => open("https://expo.dev")}>
-                <Rocket width={30} height={30} stroke={text} />
-                <Text style={[s.libName, { color: subText }]}>Expo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={s.lib} onPress={() => open("https://reactnative.dev")}>
-                <Atom width={30} height={30} stroke={text} />
-                <Text style={[s.libName, { color: subText }]}>React Native</Text>
-              </TouchableOpacity>
+              <LogoTile label="Grok" onPress={() => open("https://x.ai")} />
+              <LogoTile label="GPT" onPress={() => open("https://openai.com")} />
+              <LogoTile label="CF" onPress={() => open("https://cloudflare.com")} />
+              <LogoTile label="PA" onPress={() => open("https://affiliate-program.amazon.com")} />
+              <LogoTile label="3JS" onPress={() => open("https://threejs.org")} />
+              <LogoTile label="MP" onPress={() => open("https://mediapipe.dev")} />
+              <LogoTile label="EX" onPress={() => open("https://expo.dev")} />
+              <LogoTile label="RN" onPress={() => open("https://reactnative.dev")} />
             </View>
 
             <Text style={[s.copyright, { color: subText, marginTop: 32 }]}>
@@ -463,6 +420,7 @@ export default function SettingsScreenPro({ navigation }) {
 
 const s = StyleSheet.create({
   h1: { fontSize: 28, fontWeight: "800", marginBottom: 8 },
+
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -477,21 +435,27 @@ const s = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
   rowTitle: { fontWeight: "700" },
   rowSub: { marginTop: 2, fontSize: 12, opacity: 0.7 },
+
   segment: { flexDirection: "row", backgroundColor: "#F1F1F1", borderRadius: 12, padding: 4 },
   segBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
   segBtnActive: { backgroundColor: "#111" },
   segBtnFluid: { flexGrow: 1, minWidth: "46%", alignItems: "center" },
   segText: { fontWeight: "700" },
   segTextActive: { color: "#fff" },
+
   miniBtn: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginLeft: 6 },
   miniBtnText: { fontWeight: "700" },
+
   primaryBtn: { backgroundColor: "#111", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignSelf: "flex-start", marginTop: 10 },
   primaryText: { color: "#fff", fontWeight: "800" },
+
   dangerBtn: { borderWidth: 1, borderColor: "#E53935", borderRadius: 12, paddingVertical: 12, alignItems: "center" },
   dangerText: { color: "#E53935", fontWeight: "800" },
+
   swatch: { width: 32, height: 32, borderRadius: 8, marginRight: 10 },
   textarea: { borderWidth: 1, borderRadius: 12, padding: 12, height: 100, textAlignVertical: "top" },
   label: { fontWeight: "700", marginBottom: 6 },
+
   credits: { borderRadius: 20, padding: 20, alignItems: "center" },
   appName: { fontSize: 22, fontWeight: "900" },
   version: { fontSize: 12, marginTop: 4 },
@@ -499,20 +463,22 @@ const s = StyleSheet.create({
   made: { fontSize: 13, opacity: 0.7 },
   name: { fontSize: 20, fontWeight: "800", marginTop: 4 },
   poweredTitle: { fontSize: 16, fontWeight: "800" },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 24, marginTop: 16 },
-  lib: { alignItems: "center", width: 80 },
-  libName: { fontSize: 11, textAlign: "center", marginTop: 6, opacity: 0.8 },
-  copyright: { fontSize: 11, opacity: 0.7 },
 
-  // tiny badge for Leonardo so we don't use vector-icons
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 16, marginTop: 16 },
+
+  lib: { alignItems: "center", justifyContent: "center" },
+
   badge: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    width: 54,
+    height: 54,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#111",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#fff",
   },
-  badgeText: { fontWeight: "900", fontSize: 12, color: "#111" },
+  badgeText: { fontWeight: "900", fontSize: 14, color: "#111" },
+
+  copyright: { fontSize: 11, opacity: 0.7, textAlign: "center" },
 });

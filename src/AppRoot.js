@@ -1,32 +1,28 @@
-// src/AppRoot.js — FINAL ROOT COMPOSITION (LAUNCH-READY)
+// client/src/AppRoot.js  — DROP-IN (adds PremiumProvider correctly)
 
-import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
-import * as Font from "expo-font";
-import {
-  NavigationContainer,
-  DarkTheme,
-  DefaultTheme,
-} from "@react-navigation/native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import * as Font from 'expo-font';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
-import AppNavigator from "../navigation/AppNavigator";
+import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
+import AppNavigator from '../navigation/AppNavigator';
 
-// Contexts
-import { AppProvider } from "./context/AppContext.pro";
-import { ThemeProvider } from "./context/ThemeContext";
-import { CartProvider } from "./context/CartContext";
-import { FavoritesProvider } from "./context/FavoritesContext";
-import { SettingsProvider } from "./context/SettingsContext";
-import { AuthProvider } from "./context/AuthContext";
+import { AppProvider } from './context/AppContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { CartProvider } from './context/CartContext';
+import { FavoritesProvider } from './context/FavoritesContext';
+import { SettingsProvider } from './context/SettingsContext';
+import { AuthProvider } from './context/AuthContext';
 
-// Background personalization / telemetry-safe brain
-import BootProbe from "./BootProbe";
+// ✅ NEW: Premium gate provider (required for usePremium)
+import { PremiumProvider } from './context/PremiumContext';
 
-// Chooses light/dark nav theme based on ThemeContext
+import BootProbe from './BootProbe';
+
 function RootNavigation() {
-  const { theme } = useTheme();
-  const navTheme = theme === "dark" ? DarkTheme : DefaultTheme;
+  const t = useTheme();
+  const navTheme = t.mode === 'dark' ? DarkTheme : DefaultTheme;
 
   return (
     <NavigationContainer theme={navTheme}>
@@ -39,23 +35,26 @@ export default function AppRoot() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    async function loadResources() {
+    let mounted = true;
+
+    (async () => {
       try {
         await Font.loadAsync(Ionicons.font);
-      } catch (err) {
-        console.warn("Font load error:", err);
+      } catch (e) {
+        console.warn('Font load error', e);
       } finally {
-        setReady(true);
+        if (mounted) setReady(true);
       }
-    }
-    loadResources();
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   if (!ready) {
     return (
-      <View
-        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-      >
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
       </View>
     );
@@ -68,10 +67,13 @@ export default function AppRoot() {
           <SettingsProvider>
             <FavoritesProvider>
               <CartProvider>
-                {/* Runs nightly / periodic personalization, no UI */}
-                <BootProbe />
-                {/* All navigation (StartupScreen → Login → MainTabs) lives here */}
-                <RootNavigation />
+
+                {/* ✅ NEW: wraps BootProbe + Navigation so premium hooks never crash */}
+                <PremiumProvider>
+                  <BootProbe />
+                  <RootNavigation />
+                </PremiumProvider>
+
               </CartProvider>
             </FavoritesProvider>
           </SettingsProvider>
@@ -80,3 +82,4 @@ export default function AppRoot() {
     </AuthProvider>
   );
 }
+
