@@ -14,7 +14,7 @@ import {
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ASSOCIATE_TAG } from '../../config/affiliate';
+import { ASSOCIATE_TAG } from '../config/affiliate';
 
 const BAG_KEY = '@omnitintai:bag';
 

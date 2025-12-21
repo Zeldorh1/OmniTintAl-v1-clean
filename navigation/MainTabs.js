@@ -1,4 +1,4 @@
-// client/navigation/MainTabs.js — FINAL (SVG/Icon system, single hamburger)
+// client/navigation/MainTabs.js — FINAL (Home · Favorites · Bag · Menu overlay)
 
 import React from "react";
 import { View } from "react-native";
@@ -6,12 +6,14 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import HomeScreen from "../src/screens/HomeScreenPro";
 import FavoritesScreen from "../src/screens/Favorites";
-import PremiumNavigator from "./PremiumNavigator";
-import MenuScreen from "../src/screens/MenuScreen";
-
-import { Icon } from "../src/components/Icons"; // ✅ your icon system
+import CartScreen from "../src/screens/CartScreen"; // ✅ Bag screen (you have it)
+import { Icon } from "../src/components/Icons";
 
 const Tab = createBottomTabNavigator();
+
+function NullScreen() {
+  return null;
+}
 
 export default function MainTabs() {
   return (
@@ -51,22 +53,23 @@ export default function MainTabs() {
         }}
       />
 
+      {/* ✅ BAG tab */}
       <Tab.Screen
-        name="Premium"
-        component={PremiumNavigator}
+        name="Bag"
+        component={CartScreen}
         options={{
           tabBarIcon: ({ focused }) => (
             <View style={{ paddingTop: 6 }}>
-              <Icon name="gem" size={24} color={focused ? "#FFD700" : "#888"} />
+              <Icon name="bag" size={24} color={focused ? "#FFD700" : "#888"} />
             </View>
           ),
         }}
       />
 
-      {/* ✅ SINGLE hamburger menu — opens the PremiumMenu drawer */}
+      {/* ✅ Hamburger opens PremiumMenu overlay (ONLY premium entry point) */}
       <Tab.Screen
         name="Menu"
-        component={MenuScreen}
+        component={NullScreen}
         options={{
           tabBarIcon: ({ focused }) => (
             <View style={{ paddingTop: 6 }}>
@@ -74,6 +77,12 @@ export default function MainTabs() {
             </View>
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.getParent()?.navigate("PremiumMenu"); // ✅ opens overlay modal in AppNavigator
+          },
+        })}
       />
     </Tab.Navigator>
   );
