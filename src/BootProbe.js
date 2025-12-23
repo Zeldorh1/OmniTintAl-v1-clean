@@ -1,37 +1,47 @@
-// client/BootProbe.js — FINAL FLAGSHIP VERSION
+// client/src/BootProbe.js — FINAL (Consent-safe, V1 launch)
 //
 // Purpose:
-// - Run nightly / periodic personalization + telemetry-safe tasks
-// - NO UI, NO extra startup video, NO navigation
-// - Just a silent “brain” that keeps OmniTintAI smart over time
+// - Run nightly / periodic personalization tasks
+// - Telemetry-safe: respects REQUIRED-CHOICE consent (consentStore)
+// - NO UI, NO navigation, NO side effects at import-time
 
-import React, { useEffect } from 'react';
-
-// NOTE: paths are from the client root!
-import { useSettings } from './context/SettingsContext';
-import { maybeNightlyTasks } from './personalization/personalizer.sync';
+import React, { useEffect } from "react";
+import { maybeNightlyTasks } from "./personalization/personalizer.sync";
+import { getConsent } from "./utils/consentStore";
 
 // When you're ready, point this to your real global weights JSON
-const GLOBAL_URL =
-  'https://<your-stable-host>/model/global_personalizer_v1.json';
+const GLOBAL_URL = "https://<your-stable-host>/model/global_personalizer_v1.json";
 
 export default function BootProbe() {
-  const { settings } = useSettings?.() || {};
-
   useEffect(() => {
-    // Fire-and-forget nightly / periodic maintenance.
-    // This respects your "share anonymized stats" toggle.
-    try {
-      maybeNightlyTasks({
-        allowTelemetry: settings?.shareAnonymizedStats ?? true,
-        globalUrl: GLOBAL_URL || null,
-      });
-    } catch (e) {
-      console.warn('[BootProbe] nightly tasks error', e);
-    }
-    // You can make this smarter later (e.g., only once per 24h)
-  }, [settings?.shareAnonymizedStats]);
+    let alive = true;
 
-  // No overlay, no video, no UI.
+    (async () => {
+      try {
+        const consent = await getConsent();
+
+        // ✅ REQUIRED-CHOICE RULE:
+        // If user has not answered yet, treat as NO telemetry.
+        const answered = !!consent?.hasAnsweredConsentPrompt;
+        const allowTelemetry = answered ? !!consent?.shareAnonymizedStats : false;
+
+        if (!alive) return;
+
+        // Fire-and-forget maintenance.
+        maybeNightlyTasks({
+          allowTelemetry,
+          globalUrl: GLOBAL_URL || null,
+        });
+      } catch (e) {
+        // fail-open (never break launch)
+        console.warn("[BootProbe] nightly tasks error", e);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   return null;
 }

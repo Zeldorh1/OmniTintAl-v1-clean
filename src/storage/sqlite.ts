@@ -1,114 +1,47 @@
 // client/src/storage/sqlite.ts
+// SDK 54+ safe SQLite wrapper (async API)
+// Single DB connection + tiny helpers
+
 import * as SQLite from "expo-sqlite";
 
-const DB_NAME = "omnitintai.db";
+export const DB_NAME = "omnitintai.db";
 
-let _dbPromise: Promise<any> | null = null;
+let _db: SQLite.SQLiteDatabase | null = null;
 
-/**
- * Returns a database connection using the best available Expo SQLite API.
- * SDK 54 prefers openDatabaseAsync().
- */
-export function getDb() {
-  if (_dbPromise) return _dbPromise;
+export async function getDb() {
+  if (_db) return _db;
 
-  _dbPromise = (async () => {
-    // ✅ New SDKs
-    if (typeof (SQLite as any).openDatabaseAsync === "function") {
-      return await (SQLite as any).openDatabaseAsync(DB_NAME);
-    }
+  // ✅ SDK 54+ async open
+  _db = await SQLite.openDatabaseAsync(DB_NAME);
 
-    // ✅ Older fallback (should rarely hit in SDK 54)
-    if (typeof (SQLite as any).openDatabase === "function") {
-      return (SQLite as any).openDatabase(DB_NAME);
-    }
+  // Good defaults
+  await _db.execAsync(`PRAGMA journal_mode = WAL;`);
+  await _db.execAsync(`PRAGMA foreign_keys = ON;`);
 
-    throw new Error(
-      "ExpoSQLite API not available. Make sure expo-sqlite is installed AND included in the native build."
-    );
-  })();
-
-  return _dbPromise;
+  return _db;
 }
 
-/**
- * Run a SQL statement (no result rows expected)
- */
+// Exec a SQL string (no results)
 export async function exec(sql: string) {
   const db = await getDb();
-
-  // ✅ New API
-  if (typeof db.execAsync === "function") {
-    await db.execAsync(sql);
-    return;
-  }
-
-  // ✅ Old API fallback
-  await new Promise<void>((resolve, reject) => {
-    db.transaction((tx: any) => {
-      tx.executeSql(
-        sql,
-        [],
-        () => resolve(),
-        (_: any, err: any) => {
-          reject(err);
-          return false;
-        }
-      );
-    });
-  });
+  await db.execAsync(sql);
 }
 
-/**
- * Run a query that returns rows
- */
-export async function all<T = any>(sql: string, params: any[] = []) {
-  const db = await getDb();
-
-  // ✅ New API
-  if (typeof db.getAllAsync === "function") {
-    return (await db.getAllAsync(sql, params)) as T[];
-  }
-
-  // ✅ Old API fallback
-  return await new Promise<T[]>((resolve, reject) => {
-    db.transaction((tx: any) => {
-      tx.executeSql(
-        sql,
-        params,
-        (_: any, res: any) => resolve(res.rows?._array ?? []),
-        (_: any, err: any) => {
-          reject(err);
-          return false;
-        }
-      );
-    });
-  });
-}
-
-/**
- * Run a statement with params (insert/update)
- */
+// Run a statement with params (INSERT/UPDATE/DELETE)
 export async function run(sql: string, params: any[] = []) {
   const db = await getDb();
+  return await db.runAsync(sql, params);
+}
 
-  // ✅ New API
-  if (typeof db.runAsync === "function") {
-    return await db.runAsync(sql, params);
-  }
+// Get all rows from a SELECT
+export async function all<T = any>(sql: string, params: any[] = []) {
+  const db = await getDb();
+  return (await db.getAllAsync(sql, params)) as T[];
+}
 
-  // ✅ Old API fallback
-  return await new Promise<any>((resolve, reject) => {
-    db.transaction((tx: any) => {
-      tx.executeSql(
-        sql,
-        params,
-        (_: any, res: any) => resolve(res),
-        (_: any, err: any) => {
-          reject(err);
-          return false;
-        }
-      );
-    });
-  });
+// Get first row from a SELECT
+export async function first<T = any>(sql: string, params: any[] = []) {
+  const db = await getDb();
+  const rows = (await db.getAllAsync(sql, params)) as T[];
+  return rows?.[0] ?? null;
 }

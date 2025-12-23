@@ -5,24 +5,23 @@ import React, {
   useEffect,
   useMemo,
   useState,
-} from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Localization from 'expo-localization';
+} from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Localization from "expo-localization";
 
-const KEY = 'omni_settings_v1';
+const KEY = "omni_settings_v1";
 
 // Global app settings (launch, theme, permissions, account, etc.)
 const defaultSettings = {
   // Primary features
-  voiceWakeEnabled: true,      // "Hey Omni / OmniTint"
-  microphoneEnabled: true,     // tap-to-mic
-  shareAnonymizedStats: true,  // stays ON by default
+  voiceWakeEnabled: true, // "Hey Omni / OmniTint"
+  microphoneEnabled: true, // tap-to-mic
   showIntroOnLaunch: true,
 
   // Security
-  biometricLock: false,        // ask for biometrics on app resume
+  biometricLock: false, // ask for biometrics on app resume
   permissions: {
-    camera: null,              // 'granted' | 'denied' | null
+    camera: null, // 'granted' | 'denied' | null
     notifications: null,
   },
 
@@ -30,17 +29,17 @@ const defaultSettings = {
   notificationsEnabled: false,
 
   // Display / theme
-  theme: 'light',              // 'light' | 'dark'
-  backgroundColor: '#FFFFFF',  // user-chosen app background
+  theme: "light", // 'light' | 'dark'
+  backgroundColor: "#FFFFFF", // user-chosen app background
 
   // Language
-  language: 'auto',            // 'auto' | 'en' | 'es' | ...
+  language: "auto", // 'auto' | 'en' | 'es' | ...
 
   // Account (local placeholder until you hook auth)
   account: {
     signedIn: false,
     email: null,
-    isPremium: false,          // 👈 added so the rest of the app can safely read this
+    isPremium: false,
   },
 };
 
@@ -62,6 +61,12 @@ export function SettingsProvider({ children }) {
         const raw = await AsyncStorage.getItem(KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
+
+          // ✅ IMPORTANT: strip legacy telemetry key if it exists
+          if (parsed && typeof parsed === "object") {
+            delete parsed.shareAnonymizedStats;
+          }
+
           setSettings((prev) => ({
             ...prev,
             ...parsed,
@@ -70,7 +75,7 @@ export function SettingsProvider({ children }) {
           }));
         }
       } catch (e) {
-        console.warn('Settings load error:', e);
+        console.warn("Settings load error:", e);
       } finally {
         setLoaded(true);
       }
@@ -80,17 +85,25 @@ export function SettingsProvider({ children }) {
   // Save whenever settings change (after load)
   useEffect(() => {
     if (!loaded) return;
-    AsyncStorage.setItem(KEY, JSON.stringify(settings)).catch((e) =>
-      console.warn('Settings save error:', e)
+
+    // ✅ Always save without telemetry field
+    const toSave = { ...settings };
+    delete toSave.shareAnonymizedStats;
+
+    AsyncStorage.setItem(KEY, JSON.stringify(toSave)).catch((e) =>
+      console.warn("Settings save error:", e)
     );
   }, [settings, loaded]);
 
   const update = (patch) => {
+    const safePatch = { ...(patch || {}) };
+    delete safePatch.shareAnonymizedStats;
+
     setSettings((s) => ({
       ...s,
-      ...patch,
-      account: { ...s.account, ...(patch.account || {}) },
-      permissions: { ...s.permissions, ...(patch.permissions || {}) },
+      ...safePatch,
+      account: { ...s.account, ...(safePatch.account || {}) },
+      permissions: { ...s.permissions, ...(safePatch.permissions || {}) },
     }));
   };
 
@@ -99,32 +112,27 @@ export function SettingsProvider({ children }) {
     try {
       await AsyncStorage.setItem(KEY, JSON.stringify(defaultSettings));
     } catch (e) {
-      console.warn('Settings reset error:', e);
+      console.warn("Settings reset error:", e);
     }
   };
 
   const value = useMemo(
     () => ({
-      ...settings,      // legacy: useSettings().theme, etc.
-      settings,         // new: const { settings, update } = useSettings()
+      ...settings, // legacy: useSettings().theme, etc.
+      settings, // new: const { settings, update } = useSettings()
       update,
       resetAll,
     }),
     [settings]
   );
 
-  return (
-    <SettingsContext.Provider value={value}>
-      {children}
-    </SettingsContext.Provider>
-  );
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 
 export const useSettings = () => useContext(SettingsContext);
 
-// Helper: resolve language code (keeps your original helper)
+// Helper: resolve language code
 export function resolveLanguage(settings) {
-  if (settings.language !== 'auto') return settings.language;
-  // Use the first preferred locale from the device, e.g. "en-US" -> "en"
-  return (Localization.locale || 'en').split('-')[0];
+  if (settings.language !== "auto") return settings.language;
+  return (Localization.locale || "en").split("-")[0];
 }

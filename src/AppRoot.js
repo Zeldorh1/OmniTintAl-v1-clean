@@ -1,4 +1,4 @@
-// client/src/AppRoot.js — FINAL (Font + SQLite event store init + Providers + BootProbe safe)
+// client/src/AppRoot.js — FINAL (Fonts + EventStore init + REQUIRED CHOICE gate)
 
 import React, { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
@@ -17,13 +17,16 @@ import { AuthProvider } from "./context/AuthContext";
 import { PremiumProvider } from "./context/PremiumContext";
 
 import BootProbe from "./BootProbe";
+import { initEventStore } from "./utils/eventLogger";
 
-// ✅ NEW: SQLite event store init
-import { initEventDB } from "./storage/omniEventStore";
+// ✅ Consent gate
+import TelemetryOnboardingModal from "./components/TelemetryOnboardingModal";
+import { getConsent, setConsent } from "./utils/consentStore";
 
 function RootNavigation() {
   const t = useTheme();
-  const navTheme = t.mode === "dark" ? DarkTheme : DefaultTheme;
+  const navTheme = t?.mode === "dark" ? DarkTheme : DefaultTheme;
+
   return (
     <NavigationContainer theme={navTheme}>
       <AppNavigator />
@@ -34,18 +37,32 @@ function RootNavigation() {
 export default function AppRoot() {
   const [ready, setReady] = useState(false);
 
+  // ✅ Hard gate state
+  const [consentAnswered, setConsentAnswered] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
+
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       try {
-        // 1) Load icon fonts (if you’re using @expo/vector-icons)
         await Font.loadAsync(Ionicons.font);
+        await initEventStore();
 
-        // 2) Init SQLite event store ONCE (idempotent)
-        await initEventDB();
+        const c = await getConsent();
+        const answered = !!c?.hasAnsweredConsentPrompt;
+
+        if (mounted) {
+          setConsentAnswered(answered);
+          setShowConsent(!answered);
+        }
       } catch (e) {
         console.warn("[AppRoot] init error:", e);
+        // fail-safe: if anything breaks, still require a choice
+        if (mounted) {
+          setConsentAnswered(false);
+          setShowConsent(true);
+        }
       } finally {
         if (mounted) setReady(true);
       }
@@ -56,6 +73,21 @@ export default function AppRoot() {
     };
   }, []);
 
+  const handleConsentChoice = async (choice) => {
+    try {
+      await setConsent({
+        shareAnonymizedStats: !!choice,
+        hasAnsweredConsentPrompt: true,
+      });
+    } catch (e) {
+      console.warn("[Consent] save failed:", e);
+      // still let them proceed; worst case they see it again next launch
+    }
+
+    setShowConsent(false);
+    setConsentAnswered(true);
+  };
+
   if (!ready) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -65,24 +97,27 @@ export default function AppRoot() {
   }
 
   return (
-    <AuthProvider>
-      <AppProvider>
-        <ThemeProvider>
-          <SettingsProvider>
-            <FavoritesProvider>
-              <CartProvider>
-                <PremiumProvider>
-                  {/* ✅ BootProbe should NOT render another navigation tree.
-                      If BootProbe renders UI, it should RETURN either fallback UI OR children.
-                      If it’s side-effects only, it can stay here harmlessly. */}
-                  <BootProbe />
-                  <RootNavigation />
-                </PremiumProvider>
-              </CartProvider>
-            </FavoritesProvider>
-          </SettingsProvider>
-        </ThemeProvider>
-      </AppProvider>
-    </AuthProvider>
+    <>
+      <AuthProvider>
+        <AppProvider>
+          <ThemeProvider>
+            <SettingsProvider>
+              <FavoritesProvider>
+                <CartProvider>
+                  <PremiumProvider>
+                    <BootProbe />
+
+                    {/* ✅ HARD GATE: app nav does not exist until consent answered */}
+                    {consentAnswered ? <RootNavigation /> : null}
+                  </PremiumProvider>
+                </CartProvider>
+              </FavoritesProvider>
+            </SettingsProvider>
+          </ThemeProvider>
+        </AppProvider>
+      </AuthProvider>
+
+      <TelemetryOnboardingModal visible={showConsent} onChoose={handleConsentChoice} />
+    </>
   );
 }

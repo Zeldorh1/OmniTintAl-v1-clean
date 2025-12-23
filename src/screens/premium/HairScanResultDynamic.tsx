@@ -1,17 +1,15 @@
 // client/src/screens/premium/HairScanResultScreen.tsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
 // ✅ One-time tips overlay
 import FeatureGuideOverlay, { hasSeenGuide } from "../../components/FeatureGuideOverlay";
+
+// ✅ Brain logging wrapper
+import { logScanCompleted } from "../../brain/events";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type HairScan = {
   dryness: number;
@@ -24,13 +22,20 @@ type HairScan = {
   suggestedCategories: string[];
   aiSummary: string;
   aiPlan: { title: string; text: string }[];
+  // optional future fields:
+  scanId?: string;
+  confidence?: "low" | "medium" | "high";
 };
 
 type RouteParams = {
   scan: HairScan;
+  scanId?: string;
 };
 
 const GUIDE_KEY = "@omnitintai:guide_hair_scan_result_v2";
+
+// ✅ Prevent double-logging: store last logged scan id
+const LAST_LOGGED_SCAN_KEY = "@omnitintai:last_logged_scan_id_v1";
 
 export default function HairScanResultScreen() {
   const navigation = useNavigation<any>();
@@ -38,6 +43,9 @@ export default function HairScanResultScreen() {
   const scan: HairScan = route.params?.scan;
 
   const [showGuide, setShowGuide] = useState(false);
+
+  // guard so we never log twice during re-renders
+  const didLogRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -61,6 +69,48 @@ export default function HairScanResultScreen() {
     ] as const;
   }, [scan]);
 
+  // ✅ Brain: log scan.completed once
+  useEffect(() => {
+    if (!scan) return;
+    if (didLogRef.current) return;
+    didLogRef.current = true;
+
+    (async () => {
+      try {
+        const scanId =
+          route.params?.scanId ||
+          scan.scanId ||
+          `scan_${Date.now()}`; // stable enough for V1
+
+        const last = await AsyncStorage.getItem(LAST_LOGGED_SCAN_KEY);
+        if (last === scanId) return;
+
+        // Convert to contract metrics shape (numbers only)
+        const contractMetrics: Record<string, number> = {
+          dryness: Number(scan.dryness ?? 0),
+          damage: Number(scan.damage ?? 0),
+          frizz: Number(scan.frizz ?? 0),
+          oiliness: Number(scan.oiliness ?? 0),
+          breakageRisk: Number(scan.breakageRisk ?? 0),
+        };
+
+        await logScanCompleted({
+          scanId,
+          metrics: contractMetrics,
+          flags: Array.isArray(scan.focus) ? scan.focus : [],
+          confidence: scan.confidence || "medium",
+          confirmations: {
+            // reserved for future UX (“same lighting?”, “washed today?” etc.)
+          },
+        });
+
+        await AsyncStorage.setItem(LAST_LOGGED_SCAN_KEY, scanId);
+      } catch (e) {
+        // fail-open
+      }
+    })();
+  }, [scan, route.params]);
+
   const meterWidth = (v: number) => `${Math.min(10, Math.max(0, v)) * 10}%`;
 
   if (!scan) {
@@ -73,7 +123,6 @@ export default function HairScanResultScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      {/* One-time Pro Tips */}
       <FeatureGuideOverlay
         storageKey={GUIDE_KEY}
         visible={showGuide}
@@ -87,11 +136,7 @@ export default function HairScanResultScreen() {
         ]}
       />
 
-      <ScrollView
-        contentContainerStyle={s.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Heading */}
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={s.headingRow}>
           <View style={{ flex: 1 }}>
             <Text style={s.title}>Your Hair Health Scan</Text>
@@ -100,13 +145,11 @@ export default function HairScanResultScreen() {
             </Text>
           </View>
 
-          {/* Tiny “re-open tips” link (optional, professional) */}
           <TouchableOpacity onPress={openTips} style={s.tipsBtn} activeOpacity={0.85}>
             <Text style={s.tipsBtnText}>Pro tips</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Focus chips */}
         {scan.focus?.length > 0 && (
           <View style={s.chipRow}>
             {scan.focus.map((f) => (
@@ -117,28 +160,25 @@ export default function HairScanResultScreen() {
           </View>
         )}
 
-        {/* Metrics */}
         <View style={s.card}>
           {metrics.map((m) => (
             <View key={m.key} style={s.metricRow}>
               <View style={s.metricLabelRow}>
                 <Text style={s.metricLabel}>{m.label}</Text>
-                <Text style={s.metricValue}>{m.value.toFixed(1)}/10</Text>
+                <Text style={s.metricValue}>{Number(m.value).toFixed(1)}/10</Text>
               </View>
               <View style={s.meterBg}>
-                <View style={[s.meterFill, { width: meterWidth(m.value) }]} />
+                <View style={[s.meterFill, { width: meterWidth(Number(m.value)) }]} />
               </View>
             </View>
           ))}
         </View>
 
-        {/* Summary */}
         <View style={s.card}>
           <Text style={s.cardTitle}>AI Summary</Text>
           <Text style={s.body}>{scan.aiSummary}</Text>
         </View>
 
-        {/* Notes */}
         {scan.notes?.length > 0 && (
           <View style={s.card}>
             <Text style={s.cardTitle}>What we noticed</Text>
@@ -151,7 +191,6 @@ export default function HairScanResultScreen() {
           </View>
         )}
 
-        {/* Plan */}
         {scan.aiPlan?.length > 0 && (
           <View style={s.card}>
             <Text style={s.cardTitle}>Your 4-week game plan</Text>
@@ -164,7 +203,6 @@ export default function HairScanResultScreen() {
           </View>
         )}
 
-        {/* Suggested categories */}
         {scan.suggestedCategories?.length > 0 && (
           <View style={s.card}>
             <Text style={s.cardTitle}>What to shop for</Text>
@@ -178,15 +216,10 @@ export default function HairScanResultScreen() {
           </View>
         )}
 
-        {/* CTAs */}
         <View style={s.ctaRow}>
           <TouchableOpacity
             style={[s.ctaBtn, s.ctaPrimary]}
-            onPress={() =>
-              navigation.navigate("ProductBundleScreen", {
-                source: "HairScanner",
-              })
-            }
+            onPress={() => navigation.navigate("ProductBundleScreen", { source: "HairScanner" })}
             activeOpacity={0.9}
           >
             <Text style={s.ctaPrimaryText}>View Smart Bundles</Text>
@@ -201,7 +234,6 @@ export default function HairScanResultScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Optional: ultra-minimal disclaimer line (non-invasive) */}
         <Text style={s.microDisclaimer}>
           Not medical advice. OmniTintAI provides informational estimates only.
         </Text>
@@ -264,24 +296,11 @@ const s = StyleSheet.create({
   body: { fontSize: 13, color: "#4B5563" },
 
   metricRow: { marginBottom: 10 },
-  metricLabelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
+  metricLabelRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   metricLabel: { fontSize: 13, fontWeight: "700", color: "#111" },
   metricValue: { fontSize: 12, color: "#6B7280" },
-  meterBg: {
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#E5E7EB",
-    overflow: "hidden",
-  },
-  meterFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: "#111",
-  },
+  meterBg: { height: 6, borderRadius: 999, backgroundColor: "#E5E7EB", overflow: "hidden" },
+  meterFill: { height: "100%", borderRadius: 999, backgroundColor: "#111" },
 
   bulletRow: { flexDirection: "row", marginBottom: 4 },
   bulletDot: { fontSize: 14, marginRight: 6, color: "#4B5563" },
@@ -307,10 +326,5 @@ const s = StyleSheet.create({
   ctaSecondary: { borderWidth: 1, borderColor: "#111", backgroundColor: "#FFF" },
   ctaSecondaryText: { color: "#111", fontSize: 13, fontWeight: "700" },
 
-  microDisclaimer: {
-    marginTop: 12,
-    fontSize: 11,
-    color: "#9CA3AF",
-    textAlign: "center",
-  },
+  microDisclaimer: { marginTop: 12, fontSize: 11, color: "#9CA3AF", textAlign: "center" },
 });
