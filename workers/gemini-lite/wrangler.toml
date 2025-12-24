@@ -1,0 +1,15 @@
+name = "gemini-lite"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# No secrets here. Add secrets in Cloudflare dashboard only.
+# Bindings in Cloudflare UI:
+# - KV Namespace: RATE_LIMIT_KV
+#
+# Secrets in Cloudflare UI:
+# - GEMINI_API_KEY
+#
+# Variables (optional in Cloudflare UI):
+# - FREE_DAILY_LIMIT      (default 50 — this is cheap; used mainly for fallback)
+# - GLOBAL_DAILY_LIMIT    (optional safety cap)
+# - ENVIRONMENT           (dev|prod)

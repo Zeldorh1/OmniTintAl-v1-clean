@@ -1,3 +1,17 @@
 name = "grok-stylist"
 main = "src/index.ts"
-compatibility_date = "2024-12-01"
+compatibility_date = "2025-01-01"
+
+# No secrets here. Add secrets in Cloudflare dashboard only.
+# Bindings set in Cloudflare UI:
+# - KV Namespace: RATE_LIMIT_KV
+#
+# Secrets set in Cloudflare UI:
+# - GROK_API_KEY
+#
+# Variables (optional in Cloudflare UI):
+# - GEMINI_FALLBACK_URL   (your gemini worker URL, e.g. https://gemini-lite.<subdomain>.workers.dev)
+# - FREE_DAILY_LIMIT      (default 3)
+# - PREMIUM_DAILY_LIMIT   (default 100)
+# - GLOBAL_DAILY_LIMIT    (optional safety cap)
+# - ENVIRONMENT           (dev|prod)
