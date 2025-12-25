@@ -1,75 +1,32 @@
 // workers/gemini-lite/src/index.ts
 
-import { guardRequest } from "../../lib/guard";
-
 interface Env {
   GEMINI_API_KEY: string;
+  // KV binding kept in the type for future rate limit usage,
+  // but we are NOT using it now to avoid 1101 errors.
   RATE_LIMIT_KV: KVNamespace;
   [key: string]: any;
 }
 
 export default {
-  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const started = Date.now();
-
+  async fetch(req: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     try {
       const url = new URL(req.url);
 
-      // Only one public route: POST /scan-hair
       if (req.method === "POST" && url.pathname === "/scan-hair") {
-        const uid =
-          req.headers.get("x-user-id") ||
-          req.headers.get("x-firebase-uid") ||
-          "";
-
-        const tier = (req.headers.get("x-tier") || "unknown").toLowerCase();
-
-        const endpoint = "/scan-hair";
-        const featureTag = "scan";        // scan | explain | rerank | chat
-        const priority = "experience";    // not core ingestion
-        const estimatedCostCents = 0.5;   // Gemini Flash-Lite is cheap
-
-        // ---------- Guard / rate limits ----------
-        const decision = await guardRequest(req, env, {
-          endpoint,
-          featureTag,
-          priority,
-          estimatedCostCents,
-        });
-
-        if (!decision.ok) {
-          return json(
-            {
-              ok: false,
-              error: "rate_limited",
-              reason: decision.reason,
-              retryAfterSec: decision.retryAfter,
-            },
-            decision.httpStatus ?? 429
-          );
-        }
-
-        // ---------- Handle the scan ----------
-        const res = await handleScanHair(req, env);
-
-        // keep for future telemetry wiring
-        const latencyMs = Date.now() - started;
-        (latencyMs + uid.length + tier.length);
-
-        return res;
+        // NOTE: guardRequest is DISABLED here on purpose
+        // to avoid "Cannot read properties of undefined (reading 'get')".
+        return await handleScanHair(req, env);
       }
 
-      // Everything else = 404
       return json({ ok: false, error: "not_found" }, 404);
     } catch (err: any) {
-      // This prevents Cloudflare 1101 HTML and gives us JSON instead
-      console.error("gemini-lite worker exception", err);
-
+      console.error("gemini-lite top-level error", err);
       return json(
         {
           ok: false,
           error: "WORKER_EXCEPTION",
-          message: err?.message ?? String(err),
+          message: String(err?.message || err),
         },
         500
       );
@@ -80,30 +37,18 @@ export default {
 // ----------------- Route handler -----------------
 
 async function handleScanHair(req: Request, env: Env): Promise<Response> {
-  let body: any = null;
-
   try {
-    body = await req.json();
-  } catch (err: any) {
-    return json(
-      {
-        ok: false,
-        error: "bad_json",
-        message: err?.message ?? "Invalid JSON body",
-      },
-      400
-    );
-  }
+    const body = await req.json().catch(() => null);
 
-  if (!body?.imageBase64) {
-    return json({ ok: false, error: "missing_imageBase64" }, 400);
-  }
+    if (!body?.imageBase64) {
+      return json({ ok: false, error: "missing_imageBase64" }, 400);
+    }
 
-  const userPrompt: string | undefined = body.prompt;
+    const userPrompt: string | undefined = body.prompt;
 
-  const prompt =
-    userPrompt ??
-    `
+    const prompt =
+      userPrompt ??
+      `
 You are OmniTintAI. Analyze this hair image for:
 • current hair color (hex + undertone)
 • damage score (0-10)
@@ -120,81 +65,77 @@ Respond ONLY in compact JSON like:
 }
 `.trim();
 
-  // Strip any "data:image/...;base64," prefix just in case
-  const cleanBase64 = String(body.imageBase64).replace(
-    /^data:image\/[a-zA-Z0-9.+-]+;base64,/,
-    ""
-  );
+    // Strip any "data:image/jpeg;base64,..." prefix if present
+    const cleanBase64 = String(body.imageBase64).replace(
+      /^data:image\/[a-zA-Z0-9.+-]+;base64,/,
+      ""
+    );
 
-  const model = "gemini-2.5-flash-lite";
+    const model = "gemini-2.5-flash-lite";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
 
-  const payload = {
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: cleanBase64,
+    const payload = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              // REST API expects snake_case keys
+              inline_data: {
+                mime_type: "image/jpeg",
+                data: cleanBase64,
+              },
             },
-          },
-        ],
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 512,
       },
-    ],
-    generationConfig: {
-      temperature: 0.4,
-      maxOutputTokens: 512,
-    },
-  };
+    };
 
-  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
-
-  let apiRes: Response;
-  let raw: any = null;
-
-  try {
-    apiRes = await fetch(url, {
+    const apiRes = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
-    raw = await apiRes.json().catch(() => null);
+    const raw = await apiRes.json().catch(() => null);
+
+    if (!apiRes.ok || (raw && (raw.error || raw.status?.code))) {
+      console.error("Gemini API error", apiRes.status, raw);
+      return json(
+        {
+          ok: false,
+          error: "GEMINI_ERROR",
+          status: apiRes.status,
+          raw,
+        },
+        502
+      );
+    }
+
+    const text: string | undefined =
+      raw?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    return json({
+      ok: true,
+      model,
+      result: text ?? raw,
+    });
   } catch (err: any) {
-    console.error("Gemini HTTP error", err);
+    console.error("handleScanHair error", err);
     return json(
       {
         ok: false,
-        error: "GEMINI_HTTP_FAILURE",
-        message: err?.message ?? String(err),
+        error: "WORKER_EXCEPTION",
+        message: String(err?.message || err),
       },
-      502
+      500
     );
   }
-
-  if (!apiRes.ok || (raw && (raw.error || raw.status?.code))) {
-    console.error("Gemini API error", raw);
-    return json(
-      {
-        ok: false,
-        error: "GEMINI_ERROR",
-        status: apiRes.status,
-        raw,
-      },
-      502
-    );
-  }
-
-  const text: string | undefined =
-    raw?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  return json({
-    ok: true,
-    model,
-    result: text ?? raw,
-  });
 }
 
 // ----------------- Helpers -----------------
