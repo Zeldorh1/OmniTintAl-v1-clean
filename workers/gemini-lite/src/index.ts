@@ -1,12 +1,10 @@
 // workers/gemini-lite/src/index.ts
 
-import { guardRequest } from "../lib/guard";
+import { guardRequest } from "../../lib/guard";
 
 interface Env {
   GEMINI_API_KEY: string;
-  // You already bound this to OMNI_LIMITS_KV in Cloudflare;
-  // it's not required here, but we keep the type for future use.
-  RATE_LIMIT_KV: KVNamespace;
+  RATE_LIMIT_KV: KVNamespace; // already bound in Cloudflare
   [key: string]: any;
 }
 
@@ -15,7 +13,7 @@ export default {
     const started = Date.now();
     const url = new URL(req.url);
 
-    // We only protect the real endpoint; everything else is 404.
+    // Only real endpoint we expose
     if (req.method === "POST" && url.pathname === "/scan-hair") {
       const uid =
         req.headers.get("x-user-id") ||
@@ -25,7 +23,7 @@ export default {
 
       const endpoint = "/scan-hair";
       const featureTag = "scan";        // scan | explain | rerank | chat
-      const priority = "experience";    // fallback, not core ingestion
+      const priority = "experience";    // not core ingestion
       const estimatedCostCents = 0.5;   // Gemini Flash-Lite is cheap
 
       // ---------- Global guard + limits ----------
@@ -51,10 +49,9 @@ export default {
       // ---------- Handle the actual hair scan ----------
       const res = await handleScanHair(req, env);
 
-      // (Optional) You can wire telemetry here later via logUsage(...)
-      // We still track basic latency in case you want it:
+      // (optional) basic latency hook for future telemetry
       const latencyMs = Date.now() - started;
-      (latencyMs + uid.length + tier.length); // keep vars "used" for TS / future
+      (latencyMs + uid.length + tier.length); // keep vars “used” for TS
 
       return res;
     }
@@ -94,12 +91,14 @@ Respond ONLY in compact JSON like:
 }
 `.trim();
 
-  // Strip any "data:image/jpeg;base64," prefix if it’s there
+  // Strip any "data:image/...;base64," prefix if it’s there
   const cleanBase64 = String(body.imageBase64).replace(
     /^data:image\/[a-zA-Z0-9.+-]+;base64,/,
     ""
   );
 
+  // If this ever 404s, you can swap to whatever Google lists, e.g.
+  // "gemini-1.5-flash-latest"
   const model = "gemini-2.5-flash-lite";
 
   const payload = {
@@ -109,8 +108,8 @@ Respond ONLY in compact JSON like:
         parts: [
           { text: prompt },
           {
-            inlineData: {
-              mimeType: "image/jpeg",
+            inline_data: {
+              mime_type: "image/jpeg",
               data: cleanBase64,
             },
           },
@@ -133,6 +132,7 @@ Respond ONLY in compact JSON like:
 
   const raw = await apiRes.json().catch(() => null);
 
+  // Any non-2xx OR explicit error field from Gemini → surface as 502
   if (!apiRes.ok || (raw && (raw.error || raw.status?.code))) {
     return json(
       {
@@ -155,7 +155,7 @@ Respond ONLY in compact JSON like:
   });
 }
 
-// ----------------- Helpers -----------------
+// ----------------- Helper -----------------
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
