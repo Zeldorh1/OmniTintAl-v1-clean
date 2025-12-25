@@ -4,7 +4,7 @@ import { guardRequest } from "../../lib/guard";
 
 interface Env {
   GEMINI_API_KEY: string;
-  RATE_LIMIT_KV: KVNamespace; // already bound in Cloudflare
+  RATE_LIMIT_KV: KVNamespace;
   [key: string]: any;
 }
 
@@ -13,18 +13,19 @@ export default {
     const started = Date.now();
     const url = new URL(req.url);
 
-    // Only real endpoint we expose
+    // Only one public route: POST /scan-hair
     if (req.method === "POST" && url.pathname === "/scan-hair") {
       const uid =
         req.headers.get("x-user-id") ||
         req.headers.get("x-firebase-uid") ||
         "";
+
       const tier = (req.headers.get("x-tier") || "unknown").toLowerCase();
 
       const endpoint = "/scan-hair";
       const featureTag = "scan";        // scan | explain | rerank | chat
       const priority = "experience";    // not core ingestion
-      const estimatedCostCents = 0.5;   // Gemini Flash-Lite is cheap
+      const estimatedCostCents = 0.5;   // Flash-Lite is cheap
 
       // ---------- Global guard + limits ----------
       const decision = await guardRequest(req, env, {
@@ -49,9 +50,9 @@ export default {
       // ---------- Handle the actual hair scan ----------
       const res = await handleScanHair(req, env);
 
-      // (optional) basic latency hook for future telemetry
       const latencyMs = Date.now() - started;
-      (latencyMs + uid.length + tier.length); // keep vars “used” for TS
+      // keep vars “used” for TS / future telemetry
+      (latencyMs + uid.length + tier.length);
 
       return res;
     }
@@ -64,17 +65,29 @@ export default {
 // ----------------- Route handler -----------------
 
 async function handleScanHair(req: Request, env: Env): Promise<Response> {
-  const body = await req.json().catch(() => null);
+  try {
+    if (!env.GEMINI_API_KEY) {
+      return json(
+        {
+          ok: false,
+          error: "missing_gemini_api_key",
+          message: "Set GEMINI_API_KEY in the gemini-lite worker settings.",
+        },
+        500
+      );
+    }
 
-  if (!body?.imageBase64) {
-    return json({ ok: false, error: "missing imageBase64" }, 400);
-  }
+    const body = await req.json().catch(() => null);
 
-  const userPrompt: string | undefined = body.prompt;
+    if (!body?.imageBase64) {
+      return json({ ok: false, error: "missing_imageBase64" }, 400);
+    }
 
-  const prompt =
-    userPrompt ??
-    `
+    const userPrompt: string | undefined = body.prompt;
+
+    const prompt =
+      userPrompt ??
+      `
 You are OmniTintAI. Analyze this hair image for:
 • current hair color (hex + undertone)
 • damage score (0-10)
@@ -91,71 +104,79 @@ Respond ONLY in compact JSON like:
 }
 `.trim();
 
-  // Strip any "data:image/...;base64," prefix if it’s there
-  const cleanBase64 = String(body.imageBase64).replace(
-    /^data:image\/[a-zA-Z0-9.+-]+;base64,/,
-    ""
-  );
+    // Strip any "data:image/jpeg;base64,..." prefix if it’s there
+    const cleanBase64 = String(body.imageBase64).replace(
+      /^data:image\/[a-zA-Z0-9.+-]+;base64,/,
+      ""
+    );
 
-  // If this ever 404s, you can swap to whatever Google lists, e.g.
-  // "gemini-1.5-flash-latest"
-  const model = "gemini-2.5-flash-lite";
+    const model = "gemini-2.5-flash-lite"; // cheap + multimodal
 
-  const payload = {
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { text: prompt },
-          {
-            inline_data: {
-              mime_type: "image/jpeg",
-              data: cleanBase64,
+    const payload = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: cleanBase64,
+              },
             },
-          },
-        ],
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 512,
       },
-    ],
-    generationConfig: {
-      temperature: 0.4,
-      maxOutputTokens: 512,
-    },
-  };
+    };
 
-  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
 
-  const apiRes = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+    const apiRes = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-  const raw = await apiRes.json().catch(() => null);
+    const raw = await apiRes.json().catch(() => null);
 
-  // Any non-2xx OR explicit error field from Gemini → surface as 502
-  if (!apiRes.ok || (raw && (raw.error || raw.status?.code))) {
+    if (!apiRes.ok || (raw && (raw.error || raw.status?.code))) {
+      return json(
+        {
+          ok: false,
+          error: "GEMINI_ERROR",
+          status: apiRes.status,
+          raw,
+        },
+        502
+      );
+    }
+
+    const text: string | undefined =
+      raw?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    return json({
+      ok: true,
+      model,
+      result: text ?? raw,
+    });
+  } catch (err: any) {
+    // Catch *everything* so we never surface 1101 again
     return json(
       {
         ok: false,
-        error: "GEMINI_ERROR",
-        status: apiRes.status,
-        raw,
+        error: "WORKER_EXCEPTION",
+        message: err?.message || String(err),
       },
-      502
+      500
     );
   }
-
-  const text: string | undefined =
-    raw?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  return json({
-    ok: true,
-    model,
-    result: text ?? raw,
-  });
 }
 
-// ----------------- Helper -----------------
+// ----------------- Helpers -----------------
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
