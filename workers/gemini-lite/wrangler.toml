@@ -2,16 +2,15 @@ name = "gemini-lite"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
-kv_namespaces = [
-  { binding = "RATE_LIMIT_KV", id = "RATE_LIMIT_KV" }
-]
-
 # No secrets here. Add secrets in Cloudflare dashboard only.
 
+# Bindings are configured in the Cloudflare UI:
+# - KV Namespace binding: RATE_LIMIT_KV  → points to OMNI_LIMITS_KV
+
 # Secrets in Cloudflare UI:
-#  - GEMINI_API_KEY
+# - GEMINI_API_KEY
 
 # Variables (optional in Cloudflare UI):
-#  - FREE_DAILY_LIMIT    (default 50 — cheap endpoint)
-#  - GLOBAL_DAILY_LIMIT  (optional safety cap)
-#  - ENVIRONMENT         (dev|prod)
+# - FREE_DAILY_LIMIT   (default 50 — cheap fallback)
+# - GLOBAL_DAILY_LIMIT (optional safety cap)
+# - ENVIRONMENT        (dev|prod)
