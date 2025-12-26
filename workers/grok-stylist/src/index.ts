@@ -9,7 +9,7 @@
 // - Always prepends disclaimer before any instructions
 // - Guarded by guardRequest() + KV (global limits)
 
-import { guardRequest } from "../lib/guard";
+import { guardRequest } from "../../lib/guard";
 
 interface Env {
   GROK_API_KEY: string;

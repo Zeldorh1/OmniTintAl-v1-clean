@@ -11,7 +11,7 @@
 //   • last-scan tracking (ts + colorHex)
 // - Adds `timing.tooFastColorChange` to stop “color changed in 5 min” abuse.
 
-import { guardRequest } from "../lib/guard";
+import { guardRequest } from "../../lib/guard";
 
 interface Env {
   GEMINI_API_KEY: string;
