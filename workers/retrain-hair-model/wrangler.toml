@@ -1,0 +1,7 @@
+name = "retrain-hair-model"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Bindings (optional for now):
+# - KV Namespace: ML_BRAIN_EVENTS_KV (same as ml-hair-brain)
+# - KV Namespace: ML_BRAIN_MODEL_KV  (where summaries/models are stored)

@@ -1,0 +1,13 @@
+name = "ml-hair-brain"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "EVENT_LOG_KV"
+id = "OMNI_EVENT_LOG_KV" # <- set this to your actual KV id in Cloudflare
+
+# Secrets (in Cloudflare UI):
+# - INGEST_TOKEN
+#
+# ENV vars (optional):
+# - ENVIRONMENT = "prod" or "dev"

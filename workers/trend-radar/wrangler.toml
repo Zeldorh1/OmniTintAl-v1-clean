@@ -1,0 +1,6 @@
+name = "trend-radar"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Bind in Cloudflare UI:
+# - KV Namespace: TREND_RADAR_KV

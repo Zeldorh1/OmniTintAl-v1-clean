@@ -1,10 +1,12 @@
 // client/src/screens/premium/AIChatScreen.tsx
-// FINAL DROP-IN (v2)
-// ✅ No vector-icons
-// ✅ Correct Grok stylist import path
-// ✅ Premium gate check (routes to PremiumGate if locked)
-// ✅ One-time Pro Tips overlay (versioned storage key)
-// ✅ Light legal disclaimer (not medical/pro care)
+// FINAL · V1 · AI STYLIST CHAT · COSMETIC-ONLY + 18+ CONSENT
+//
+// - Premium-gated AI stylist chat using Grok Stylist worker
+// - Intended ONLY for hair color + cosmetic hair-care guidance
+// - First-use 18+ / fair-use / non-medical consent gate (2 separate confirms)
+// - Light always-on disclaimer in the chat
+// - All non-hair / non-cosmetic domain enforcement should be handled server-side
+//   in the grok-stylist worker prompt + guard.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -19,8 +21,12 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ✅ Premium SVG icon system (NO FONT FILES)
 import { Icon } from "../../components/Icons";
@@ -30,7 +36,9 @@ import { useSettings } from "../../context/SettingsContext";
 import { checkLimit } from "../../utils/grokHairScannerBundles/userLimits";
 
 // ✅ Feature guide overlay (shown once per update)
-import FeatureGuideOverlay, { hasSeenGuide } from "../../components/FeatureGuideOverlay";
+import FeatureGuideOverlay, {
+  hasSeenGuide,
+} from "../../components/FeatureGuideOverlay";
 
 // ✅ Correct (authoritative) import path
 import { askGrokStylist } from "../../utils/grokHairScannerBundles/grokStylist";
@@ -63,6 +71,9 @@ const GUIDE_KEY = "@omnitintai:guide_aichat_v2";
 const FEATURE_NAME = "AI Stylist Chat";
 const LIMIT_KEY = "AI_CHAT";
 
+// 🔒 Consent gate storage key (bump version if text changes in future)
+const CONSENT_KEY = "@omnitintai:aichat_consent_v1";
+
 export default function AIChatScreen({ route }: any) {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -83,28 +94,34 @@ export default function AIChatScreen({ route }: any) {
       id: "m0",
       role: "bot",
       text: `Hi! I’m Omni, your AI stylist. ${
-        details ? "Based on your scan (goals + hair health)" : "Ask me anything about hair color and care"
-      }.`,
+        details
+          ? "I can help you plan hair color and care based on your current goals and hair behaviour."
+          : "Ask me anything about hair color and cosmetic hair care (not medical concerns)."
+      }`,
     },
   ]);
   const [isTyping, setIsTyping] = useState(false);
-
   const listRef = useRef<ScrollView | null>(null);
   const [kbHeight, setKbHeight] = useState(0);
 
+  // 🔒 Consent gate state
+  const [showConsent, setShowConsent] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [tosConfirmed, setTosConfirmed] = useState(false);
+  const consentReady = ageConfirmed && tosConfirmed;
+
   // ─────────────────────────────────────────
-  // Gate + guide (on mount)
+  // Gate + guide + consent (on mount)
   // ─────────────────────────────────────────
   useEffect(() => {
     (async () => {
       try {
-        // Gate first
+        // 1) Premium / usage limit gate
         const { allowed, limit } = await checkLimit(LIMIT_KEY, { isPremium });
         if (!allowed) {
           setUsesLeft(typeof limit === "number" ? limit : 0);
           setLocked(true);
           setLoading(false);
-          // Route to your PremiumGate screen in PremiumNavigator
           navigation.navigate("PremiumGate", {
             feature: FEATURE_NAME,
             usesLeft: typeof limit === "number" ? limit : 0,
@@ -114,11 +131,18 @@ export default function AIChatScreen({ route }: any) {
 
         setLocked(false);
         if (typeof limit === "number") setUsesLeft(limit);
-        setLoading(false);
 
-        // Then guide (one-time per update)
-        const seen = await hasSeenGuide(GUIDE_KEY);
-        if (!seen) setShowGuide(true);
+        // 2) One-time pro tips overlay
+        const seenGuide = await hasSeenGuide(GUIDE_KEY);
+        if (!seenGuide) setShowGuide(true);
+
+        // 3) 18+ / fair-use / non-medical consent gate (only for allowed users)
+        const consent = await AsyncStorage.getItem(CONSENT_KEY);
+        if (!consent) {
+          setShowConsent(true);
+        }
+
+        setLoading(false);
       } catch {
         setLoading(false);
       }
@@ -139,8 +163,10 @@ export default function AIChatScreen({ route }: any) {
       setKbHeight(0);
     };
 
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const s = Keyboard.addListener(showEvent, onShow);
     const h = Keyboard.addListener(hideEvent, onHide);
@@ -163,6 +189,9 @@ export default function AIChatScreen({ route }: any) {
   }, [msgs.length]);
 
   const handleSend = async (textOverride?: string) => {
+    // Don’t allow sending until consent is accepted
+    if (showConsent) return;
+
     const text = (textOverride ?? input).trim();
     if (!text || isTyping) return;
 
@@ -172,6 +201,11 @@ export default function AIChatScreen({ route }: any) {
     setIsTyping(true);
 
     try {
+      // IMPORTANT:
+      // Any domain restriction (“only hair/cosmetics”, “no explicit content”,
+      // “no medical advice”) MUST also be enforced in the grok-stylist worker
+      // prompt + guard. This UI assumes that worker is already locked to
+      // hair/cosmetic topics only.
       const answer = await askGrokStylist(
         text,
         details || {},
@@ -204,6 +238,16 @@ export default function AIChatScreen({ route }: any) {
   const onChipPress = (label: string) => handleSend(label);
   const bottomOffset = kbHeight;
 
+  const handleCompleteConsent = async () => {
+    if (!consentReady) return;
+    try {
+      await AsyncStorage.setItem(CONSENT_KEY, "1");
+    } catch {
+      // fail-open; but gate has already been clicked by the user
+    }
+    setShowConsent(false);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.wrap, styles.center]}>
@@ -224,10 +268,10 @@ export default function AIChatScreen({ route }: any) {
         storageKey={GUIDE_KEY}
         title="Pro tips for Omni Stylist"
         bullets={[
-          "Ask for a result + your current hair color (ex: “dark brown → ash blonde”).",
-          "Mention texture + concerns (frizz, breakage, brassiness) for better plans.",
+          "Ask about hair color and cosmetic hair care only (not medical issues).",
+          "Include your current color, texture, and main concerns (like frizz or brassiness).",
           "Use the quick chips for fast routines, then refine with follow-ups.",
-          "If you have a scan result, Omni will tailor recommendations to it.",
+          "Always double-check routines and product choices with a stylist or professional if you’re unsure.",
         ]}
         visible={showGuide}
         onClose={() => setShowGuide(false)}
@@ -246,7 +290,7 @@ export default function AIChatScreen({ route }: any) {
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Omni Stylist</Text>
           <Text style={styles.subTitle}>
-            Personalized hair color + care guidance
+            18+ cosmetic hair color & care guidance — not medical advice.
           </Text>
         </View>
 
@@ -263,7 +307,11 @@ export default function AIChatScreen({ route }: any) {
         style={{ maxHeight: 46 }}
       >
         {QUICK_CHIPS.map((item) => (
-          <TouchableOpacity key={item.id} style={styles.chip} onPress={() => onChipPress(item.label)}>
+          <TouchableOpacity
+            key={item.id}
+            style={styles.chip}
+            onPress={() => onChipPress(item.label)}
+          >
             <View style={{ marginRight: 8 }}>
               <Icon name={item.icon as any} size={16} color={BW.chipInk} />
             </View>
@@ -281,7 +329,8 @@ export default function AIChatScreen({ route }: any) {
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingTop: 16,
-          paddingBottom: EXTRA_PAD + INPUT_H + bottomOffset + insets.bottom,
+          paddingBottom:
+            EXTRA_PAD + INPUT_H + bottomOffset + insets.bottom,
         }}
         onContentSizeChange={scrollToEnd}
         keyboardShouldPersistTaps="handled"
@@ -305,7 +354,6 @@ export default function AIChatScreen({ route }: any) {
             </Text>
           </View>
         ))}
-
         {isTyping && (
           <View style={[styles.bubble, styles.botBubble]}>
             <Text style={styles.botName}>Omni</Text>
@@ -313,9 +361,13 @@ export default function AIChatScreen({ route }: any) {
           </View>
         )}
 
-        {/* Light disclaimer */}
+        {/* Always-visible light disclaimer */}
         <Text style={styles.disclaimer}>
-          OmniTintAI provides informational guidance only — not medical advice, and not a substitute for professional care.
+          Omni Stylist is for general hair color and cosmetic hair-care
+          guidance only. It does not provide medical advice, mental health
+          support, or professional services. Always double-check any routine,
+          treatment, or product changes with a licensed stylist, dermatologist,
+          or other qualified professional before acting.
         </Text>
       </ScrollView>
 
@@ -332,7 +384,7 @@ export default function AIChatScreen({ route }: any) {
 
         <View style={styles.inputWrap}>
           <TextInput
-            placeholder="Ask Omni anything…"
+            placeholder="Ask about hair color and cosmetic hair care…"
             placeholderTextColor={BW.sub}
             value={input}
             onChangeText={setInput}
@@ -343,13 +395,81 @@ export default function AIChatScreen({ route }: any) {
         </View>
 
         <TouchableOpacity
-          style={[styles.sendBtn, !input.trim() || isTyping ? styles.sendBtnDisabled : null]}
+          style={[
+            styles.sendBtn,
+            !input.trim() || isTyping || showConsent
+              ? styles.sendBtnDisabled
+              : null,
+          ]}
           onPress={() => handleSend()}
-          disabled={!input.trim() || isTyping}
+          disabled={!input.trim() || isTyping || showConsent}
         >
           <Icon name="chevronRight" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
+
+      {/* 🔒 18+ / Fair-use / Non-medical Consent Overlay */}
+      {showConsent && (
+        <View style={styles.consentOverlay}>
+          <View style={styles.consentCard}>
+            <Text style={styles.consentTitle}>Before you use Omni Stylist</Text>
+            <Text style={styles.consentBody}>
+              Omni Stylist is an AI for hair color and cosmetic hair-care
+              guidance only. It is not a doctor, therapist, or licensed
+              professional and must not be used for medical, emergency, or life
+              decisions.
+            </Text>
+
+            <Text style={styles.consentBody}>
+              By continuing, you agree to:
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.consentBtn,
+                ageConfirmed && styles.consentBtnActive,
+              ]}
+              onPress={() => setAgeConfirmed(true)}
+            >
+              <Text style={styles.consentBtnText}>
+                ✅ I confirm I am 18 years or older.
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.consentBtn,
+                tosConfirmed && styles.consentBtnActive,
+              ]}
+              onPress={() => setTosConfirmed(true)}
+            >
+              <Text style={styles.consentBtnText}>
+                ✅ I agree to fair use and understand this is not medical advice.
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.consentFinePrint}>
+              Fair use means: no harassment, hate, explicit content, or using
+              responses for harmful, illegal, or non-hair-related purposes.
+              Always check any routine or product changes with a trained
+              professional before you try them.
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.consentContinueBtn,
+                !consentReady && styles.consentContinueDisabled,
+              ]}
+              onPress={handleCompleteConsent}
+              disabled={!consentReady}
+            >
+              <Text style={styles.consentContinueText}>
+                Enter Omni Stylist
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -377,7 +497,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#fff",
   },
-  title: { fontSize: 24, fontWeight: "900", color: BW.ink, letterSpacing: -0.3 },
+  title: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: BW.ink,
+    letterSpacing: -0.3,
+  },
   subTitle: { marginTop: 2, fontSize: 12, color: BW.sub, fontWeight: "600" },
   badge: {
     paddingHorizontal: 10,
@@ -466,4 +591,76 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sendBtnDisabled: { opacity: 0.4 },
+
+  // 🔒 Consent overlay styles
+  consentOverlay: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#00000088",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  consentCard: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: BW.line,
+  },
+  consentTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: BW.ink,
+    marginBottom: 8,
+  },
+  consentBody: {
+    fontSize: 13,
+    color: BW.sub,
+    marginBottom: 8,
+  },
+  consentBtn: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: BW.line,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 6,
+    backgroundColor: "#FFF",
+  },
+  consentBtnActive: {
+    borderColor: BW.ink,
+    backgroundColor: "#F3F4F6",
+  },
+  consentBtnText: {
+    fontSize: 13,
+    color: BW.ink,
+    fontWeight: "700",
+  },
+  consentFinePrint: {
+    fontSize: 11,
+    color: BW.sub,
+    marginTop: 10,
+    lineHeight: 16,
+  },
+  consentContinueBtn: {
+    marginTop: 14,
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: BW.ink,
+  },
+  consentContinueDisabled: {
+    opacity: 0.4,
+  },
+  consentContinueText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
 });

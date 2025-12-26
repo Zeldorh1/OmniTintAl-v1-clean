@@ -1,35 +1,45 @@
-export interface Env {
+// workers/grok-stylist/src/index.ts
+// V1 · HAIR-ONLY GROK STYLIST · GEMINI FALLBACK + DISCLAIMER
+//
+// POST /chat
+// body: { prompt: string }
+//
+// - Only answers hair / scalp / hair-product topics
+// - Grok first, Gemini-lite fallback (worker-to-worker)
+// - Always prepends disclaimer before any instructions
+// - Guarded by guardRequest() + KV (global limits)
+
+import { guardRequest } from "../lib/guard";
+
+interface Env {
   GROK_API_KEY: string;
   RATE_LIMIT_KV: KVNamespace;
 
-  // Optional vars (set as plain env vars in Cloudflare UI, not secrets)
-  GEMINI_FALLBACK_URL?: string; // e.g. https://gemini-lite.<subdomain>.workers.dev
-  FREE_DAILY_LIMIT?: string; // default 3
-  PREMIUM_DAILY_LIMIT?: string; // default 100 (hidden fair use)
-  GLOBAL_DAILY_LIMIT?: string; // optional global cap
+  // Optional: URL of your gemini-lite worker for fallback
+  // e.g. https://gemini-lite.<your-subdomain>.workers.dev
+  GEMINI_FALLBACK_URL?: string;
+
   ENVIRONMENT?: string;
 }
-
-type AuthUser = {
-  uid: string;
-  isPremium: boolean;
-};
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization,Content-Type",
+  "Access-Control-Allow-Headers": "Authorization,Content-Type,x-user-id,x-firebase-uid,x-tier",
   "Access-Control-Max-Age": "86400",
 };
 
-function json(data: any, status = 200, extra: Record<string, string> = {}) {
+const DISCLAIMER =
+  "Disclaimer: OmniTintAI gives general hair-care guidance only. This is NOT medical advice. Always follow product instructions, perform a patch test, and consult a professional for chemical or drastic treatments.";
+
+function json(data: any, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", ...CORS_HEADERS, ...extra },
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
   });
 }
 
-function text(data: string, status = 200) {
+function text(data: string, status = 200): Response {
   return new Response(data, { status, headers: { ...CORS_HEADERS } });
 }
 
@@ -37,84 +47,205 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getLimits(env: Env) {
-  const free = Number(env.FREE_DAILY_LIMIT ?? "3");
-  const prem = Number(env.PREMIUM_DAILY_LIMIT ?? "100");
-  const global = env.GLOBAL_DAILY_LIMIT ? Number(env.GLOBAL_DAILY_LIMIT) : null;
-  return { free, prem, global };
-}
+export default {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    if (req.method === "OPTIONS") return text("", 204);
 
-/**
- * V1 AUTH (simple, safe enough):
- * - Premium determination via header only (server decides).
- * - uid from header (or IP fallback).
- *
- * In V2 you’ll swap to Firebase/JWT.
- */
-function getUser(req: Request): AuthUser {
-  const uid =
-    req.headers.get("x-user-id") ||
-    req.headers.get("x-firebase-uid") ||
-    req.headers.get("cf-connecting-ip") ||
-    "anon";
+    const url = new URL(req.url);
 
-  const tier = (req.headers.get("x-tier") || "free").toLowerCase();
-  const isPremium = tier === "premium" || tier === "pro";
+    // Health check
+    if (req.method === "GET" && url.pathname === "/") {
+      return json({
+        ok: true,
+        worker: "grok-stylist",
+        date: today(),
+        env: env.ENVIRONMENT ?? "unknown",
+      });
+    }
 
-  return { uid, isPremium };
-}
+    // Main chat endpoint
+    if (req.method === "POST" && url.pathname === "/chat") {
+      const uid =
+        req.headers.get("x-user-id") ||
+        req.headers.get("x-firebase-uid") ||
+        req.headers.get("cf-connecting-ip") ||
+        "anon";
 
-/**
- * KV rate limit (per-user + optional global cap)
- */
-async function enforceLimits(env: Env, user: AuthUser) {
-  const d = today();
-  const { free, prem, global } = getLimits(env);
+      const tier = (req.headers.get("x-tier") || "free").toLowerCase();
 
-  const max = user.isPremium ? prem : free;
-  const perUserKey = `grok:${user.uid}:${d}`;
-  const globalKey = `grok:global:${d}`;
+      // Global guard / budget / abuse protection
+      const decision = await guardRequest(req, env, {
+        endpoint: "/grok-stylist/chat",
+        featureTag: "chat",        // scan | explain | rerank | chat
+        priority: "experience",    // not core ingestion
+        estimatedCostCents: 1.0,   // Grok-2 text is still cheap at our limits
+      });
 
-  // optional global cap (safety kill switch)
-  if (global !== null) {
-    const gUsed = Number((await env.RATE_LIMIT_KV.get(globalKey)) ?? "0");
-    if (gUsed >= global) {
-      return { allowed: false, remaining: 0, used: gUsed, limit: global, scope: "global" as const };
+      if (!decision.ok) {
+        return json(
+          {
+            ok: false,
+            error: "rate_limited",
+            reason: decision.reason,
+            retryAfterSec: decision.retryAfter,
+          },
+          decision.httpStatus ?? 429
+        );
+      }
+
+      return routeChat(req, env, uid, tier);
+    }
+
+    return json({ ok: false, error: "NOT_FOUND" }, 404);
+  },
+};
+
+// ----------------- Route handler -----------------
+
+async function routeChat(
+  req: Request,
+  env: Env,
+  uid: string,
+  tier: string
+): Promise<Response> {
+  const body = await req.json().catch(() => ({}));
+  const rawPrompt = String(body?.prompt || "").trim();
+
+  if (!rawPrompt) {
+    return json({ ok: false, error: "BAD_REQUEST", message: "Missing prompt." }, 400);
+  }
+
+  // Hair-domain filter: reject obvious non-hair topics
+  if (!isHairDomainPrompt(rawPrompt)) {
+    return json({
+      ok: true,
+      content:
+        `${DISCLAIMER}\n\n` +
+        "This assistant is strictly for hair, scalp, and hair-product guidance. " +
+        "I can help with things like damage repair, color choices, routines, ingredients, and styling tips — " +
+        "but I can't answer unrelated questions.",
+      provider: "policy",
+    });
+  }
+
+  // Try Grok first
+  let provider: "grok" | "gemini-fallback" = "grok";
+  let answer = "";
+
+  try {
+    const grok = await callGrok(env, rawPrompt);
+    if (!grok.ok) throw new Error(`grok_failed_${grok.status}`);
+    answer = grok.content;
+  } catch (err) {
+    // Fallback to Gemini-lite worker if configured
+    if (env.GEMINI_FALLBACK_URL) {
+      provider = "gemini-fallback";
+      const g = await callGeminiFallback(env, rawPrompt, tier);
+      answer = g;
+    } else {
+      return json(
+        {
+          ok: false,
+          error: "UPSTREAM_ERROR",
+          message: "Hair stylist brain is temporarily unavailable. Try again in a bit.",
+        },
+        502
+      );
     }
   }
 
-  const used = Number((await env.RATE_LIMIT_KV.get(perUserKey)) ?? "0");
-  if (used >= max) {
-    return { allowed: false, remaining: 0, used, limit: max, scope: "user" as const };
-  }
+  const content = buildFinalAnswer(answer);
 
-  const next = used + 1;
-  await env.RATE_LIMIT_KV.put(perUserKey, String(next), { expirationTtl: 60 * 60 * 26 });
-
-  if (global !== null) {
-    const gUsed = Number((await env.RATE_LIMIT_KV.get(globalKey)) ?? "0");
-    await env.RATE_LIMIT_KV.put(globalKey, String(gUsed + 1), { expirationTtl: 60 * 60 * 26 });
-  }
-
-  return { allowed: true, remaining: Math.max(0, max - next), used: next, limit: max, scope: "user" as const };
+  return json({
+    ok: true,
+    uid,
+    tier,
+    provider,
+    content,
+  });
 }
 
-/**
- * Grok proxy
- */
-async function callGrok(env: Env, prompt: string) {
+// ----------------- Hair-domain filter -----------------
+
+function isHairDomainPrompt(prompt: string): boolean {
+  const p = prompt.toLowerCase();
+
+  const hairKeywords = [
+    "hair",
+    "scalp",
+    "roots",
+    "split ends",
+    "frizz",
+    "dandruff",
+    "bleach",
+    "bleaching",
+    "toner",
+    "toning",
+    "hair dye",
+    "dye my hair",
+    "box dye",
+    "developer",
+    "10 volume",
+    "20 volume",
+    "30 volume",
+    "40 volume",
+    "balayage",
+    "highlights",
+    "lowlights",
+    "gloss",
+    "toning shampoo",
+    "purple shampoo",
+    "bond repair",
+    "olaplex",
+    "k18",
+    "leave-in conditioner",
+    "hair mask",
+    "deep conditioner",
+    "hair oil",
+    "curly hair",
+    "coily",
+    "straight hair",
+    "wavy hair",
+    "hair porosity",
+    "hair density",
+    "hair type",
+    "hair routine",
+    "protective style",
+    "braids",
+    "locs",
+    "loc maintenance",
+    "twists",
+    "fade haircut",
+    "barber",
+    "haircut",
+  ];
+
+  return hairKeywords.some((kw) => p.includes(kw));
+}
+
+// ----------------- Grok call -----------------
+
+async function callGrok(env: Env, prompt: string): Promise<{ ok: boolean; status?: number; content: string }> {
   const body = {
-    model: "grok-2-mini",
+    model: "grok-2",
     messages: [
       {
         role: "system",
         content:
-          "You are OmniTintAI's professional hair stylist assistant. Be concise, practical, and safe. Avoid medical claims. Suggest patch tests when relevant.",
+          "You are OmniTintAI's professional hair stylist assistant.\n" +
+          "- ONLY answer questions about hair, scalp, and hair-related products.\n" +
+          "- Do NOT give medical advice or diagnose conditions.\n" +
+          "- For chemical treatments (bleach, high-lift, relaxers, perms, strong actives), be conservative and recommend patch tests and professional help.\n" +
+          "- Avoid extreme or unsafe experiments. Safety first.\n" +
+          "- If the user asks something non-hair-related, politely redirect back to hair topics.",
       },
-      { role: "user", content: prompt },
+      {
+        role: "user",
+        content: prompt,
+      },
     ],
-    temperature: 0.6,
-    max_tokens: 450,
+    temperature: 0.55,
+    max_tokens: 600,
   };
 
   const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -126,115 +257,65 @@ async function callGrok(env: Env, prompt: string) {
     body: JSON.stringify(body),
   });
 
-  const raw = await res.text();
-  if (!res.ok) return { ok: false as const, status: res.status, raw };
+  const text = await res.text();
 
-  try {
-    return { ok: true as const, data: JSON.parse(raw) };
-  } catch {
-    return { ok: true as const, data: raw };
+  if (!res.ok) {
+    return { ok: false, status: res.status, content: text || "" };
   }
+
+  let raw: any = null;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { ok: true, content: text || "" };
+  }
+
+  const content =
+    raw?.choices?.[0]?.message?.content ??
+    raw?.choices?.[0]?.delta?.content ??
+    "";
+
+  return { ok: true, content: String(content || "").trim() };
 }
 
-/**
- * Gemini fallback call (calls your gemini-lite worker)
- * IMPORTANT: This is worker-to-worker; Gemini key stays ONLY in gemini-lite.
- */
-async function callGeminiFallback(env: Env, prompt: string) {
+// ----------------- Gemini-lite fallback -----------------
+
+async function callGeminiFallback(env: Env, prompt: string, tier: string): Promise<string> {
   const base = (env.GEMINI_FALLBACK_URL || "").replace(/\/+$/, "");
   if (!base) throw new Error("missing_gemini_fallback_url");
 
-  const res = await fetch(`${base}/chat`, {
+  const res = await fetch(`${base}/chat-hair`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // optional header so gemini-lite can apply tier rules too:
-      "x-tier": "fallback",
+      "x-tier": tier,
     },
     body: JSON.stringify({ prompt }),
   });
 
-  const raw = await res.text();
+  const text = await res.text();
   if (!res.ok) throw new Error(`gemini_fallback_failed_${res.status}`);
 
   try {
-    return JSON.parse(raw);
+    const json = JSON.parse(text);
+    return String(json?.content || json?.reply || text || "");
   } catch {
-    return { ok: true, content: String(raw || "") };
+    return text || "";
   }
 }
 
-export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
-    try {
-      if (req.method === "OPTIONS") return text("", 204);
+// ----------------- Final answer builder -----------------
 
-      const url = new URL(req.url);
+function buildFinalAnswer(body: string): string {
+  const trimmed = String(body || "").trim();
+  if (!trimmed) {
+    return (
+      DISCLAIMER +
+      "\n\n" +
+      "Something went wrong generating a response. Please try again with a clear hair-related question."
+    );
+  }
 
-      // Health
-      if (req.method === "GET" && url.pathname === "/") {
-        return json({
-          ok: true,
-          worker: "grok-stylist",
-          date: today(),
-          env: env.ENVIRONMENT ?? "unknown",
-        });
-      }
-
-      // Main endpoint
-      if (req.method === "POST" && url.pathname === "/chat") {
-        const user = getUser(req);
-
-        // limits
-        const limit = await enforceLimits(env, user);
-        if (!limit.allowed) {
-          return json(
-            { ok: false, error: "RATE_LIMIT", message: "Daily limit reached.", limit },
-            429
-          );
-        }
-
-        const body = await req.json().catch(() => ({}));
-        const prompt = String(body?.prompt || "").trim();
-        if (!prompt) return json({ ok: false, error: "BAD_REQUEST", message: "Missing prompt." }, 400);
-
-        // Try Grok first
-        let provider: "grok" | "gemini" = "grok";
-        let content = "";
-
-        try {
-          const grok = await callGrok(env, prompt);
-          if (!grok.ok) throw new Error(`grok_failed_${grok.status}`);
-
-          content =
-            grok.data?.choices?.[0]?.message?.content ??
-            grok.data?.choices?.[0]?.delta?.content ??
-            "";
-          if (!content) content = "No response.";
-        } catch (e) {
-          // Fallback to Gemini (cheap + safe)
-          provider = "gemini";
-          const g = await callGeminiFallback(env, prompt);
-          content = String(g?.content || g?.reply || "").trim() || "No response.";
-        }
-
-        return json({
-          ok: true,
-          uid: user.uid,
-          isPremium: user.isPremium,
-          provider,
-          limit,
-          content,
-        });
-      }
-
-      return json({ ok: false, error: "NOT_FOUND" }, 404);
-    } catch (e: any) {
-      const msg = String(e?.message || e || "unknown_error");
-      const status =
-        msg.includes("missing_gemini_fallback_url") ? 500 :
-        500;
-      return json({ ok: false, error: msg }, status);
-    }
-  },
-};
+  // Always prepend disclaimer + a subtle separator
+  return `${DISCLAIMER}\n\n${trimmed}`;
+}

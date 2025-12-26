@@ -1,11 +1,31 @@
 // client/src/screens/premium/HairScanResultScreen.tsx
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+// V1 · HAIR SCAN RESULTS · COSMETIC / NON-MEDICAL
+//
+// - Displays a cosmetic snapshot of hair condition scores (0–10)
+// - Logs scan to brain/events once (no double logging)
+// - Clearly framed as informational only, not diagnosis or treatment
+
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
 // ✅ One-time tips overlay
-import FeatureGuideOverlay, { hasSeenGuide } from "../../components/FeatureGuideOverlay";
+import FeatureGuideOverlay, {
+  hasSeenGuide,
+} from "../../components/FeatureGuideOverlay";
 
 // ✅ Brain logging wrapper
 import { logScanCompleted } from "../../brain/events";
@@ -52,7 +72,9 @@ export default function HairScanResultScreen() {
       try {
         const seen = await hasSeenGuide(GUIDE_KEY);
         if (!seen) setShowGuide(true);
-      } catch {}
+      } catch {
+        // ignore
+      }
     })();
   }, []);
 
@@ -65,7 +87,7 @@ export default function HairScanResultScreen() {
       { key: "damage", label: "Damage", value: scan.damage },
       { key: "frizz", label: "Frizz", value: scan.frizz },
       { key: "oiliness", label: "Oiliness", value: scan.oiliness },
-      { key: "breakageRisk", label: "Breakage Risk", value: scan.breakageRisk },
+      { key: "breakageRisk", label: "Breakage risk", value: scan.breakageRisk },
     ] as const;
   }, [scan]);
 
@@ -111,7 +133,8 @@ export default function HairScanResultScreen() {
     })();
   }, [scan, route.params]);
 
-  const meterWidth = (v: number) => `${Math.min(10, Math.max(0, v)) * 10}%`;
+  const meterWidth = (v: number) =>
+    `${Math.min(10, Math.max(0, v)) * 10}%`;
 
   if (!scan) {
     return (
@@ -129,23 +152,37 @@ export default function HairScanResultScreen() {
         onClose={() => setShowGuide(false)}
         title="Pro tips for Hair Scan Results"
         bullets={[
-          "These scores are risk indicators (0–10), not a diagnosis or medical result.",
-          "Focus chips show the fastest wins—start there before chasing everything at once.",
+          "These scores are cosmetic risk indicators (0–10), not a diagnosis or medical result.",
+          "Focus chips highlight where a cosmetic care routine can make the biggest difference first.",
           "Use Smart Bundles for a complete routine; use Trending Shades if you’re planning a color change.",
           "Re-scan under similar lighting for cleaner progress comparisons.",
         ]}
       />
 
-      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={s.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={s.headingRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>Your Hair Health Scan</Text>
+            <Text style={s.title}>Your Hair Scan Results</Text>
             <Text style={s.subtitle}>
-              Based on your photo, here’s where your hair needs the most attention.
+              Based on your photo, here’s a cosmetic snapshot of how your hair
+              may be behaving right now.
             </Text>
+
+            {scan.confidence && (
+              <Text style={s.confidenceText}>
+                Confidence: {scan.confidence.toUpperCase()}
+              </Text>
+            )}
           </View>
 
-          <TouchableOpacity onPress={openTips} style={s.tipsBtn} activeOpacity={0.85}>
+          <TouchableOpacity
+            onPress={openTips}
+            style={s.tipsBtn}
+            activeOpacity={0.85}
+          >
             <Text style={s.tipsBtnText}>Pro tips</Text>
           </TouchableOpacity>
         </View>
@@ -165,10 +202,17 @@ export default function HairScanResultScreen() {
             <View key={m.key} style={s.metricRow}>
               <View style={s.metricLabelRow}>
                 <Text style={s.metricLabel}>{m.label}</Text>
-                <Text style={s.metricValue}>{Number(m.value).toFixed(1)}/10</Text>
+                <Text style={s.metricValue}>
+                  {Number(m.value).toFixed(1)}/10
+                </Text>
               </View>
               <View style={s.meterBg}>
-                <View style={[s.meterFill, { width: meterWidth(Number(m.value)) }]} />
+                <View
+                  style={[
+                    s.meterFill,
+                    { width: meterWidth(Number(m.value)) },
+                  ]}
+                />
               </View>
             </View>
           ))}
@@ -181,7 +225,7 @@ export default function HairScanResultScreen() {
 
         {scan.notes?.length > 0 && (
           <View style={s.card}>
-            <Text style={s.cardTitle}>What we noticed</Text>
+            <Text style={s.cardTitle}>What this scan noticed</Text>
             {scan.notes.map((n, i) => (
               <View key={i} style={s.bulletRow}>
                 <Text style={s.bulletDot}>•</Text>
@@ -193,7 +237,7 @@ export default function HairScanResultScreen() {
 
         {scan.aiPlan?.length > 0 && (
           <View style={s.card}>
-            <Text style={s.cardTitle}>Your 4-week game plan</Text>
+            <Text style={s.cardTitle}>Your 4-week care plan</Text>
             {scan.aiPlan.map((step, i) => (
               <View key={i} style={s.stepBlock}>
                 <Text style={s.stepTitle}>{step.title}</Text>
@@ -219,7 +263,11 @@ export default function HairScanResultScreen() {
         <View style={s.ctaRow}>
           <TouchableOpacity
             style={[s.ctaBtn, s.ctaPrimary]}
-            onPress={() => navigation.navigate("ProductBundleScreen", { source: "HairScanner" })}
+            onPress={() =>
+              navigation.navigate("ProductBundleScreen", {
+                source: "HairScanner",
+              })
+            }
             activeOpacity={0.9}
           >
             <Text style={s.ctaPrimaryText}>View Smart Bundles</Text>
@@ -227,15 +275,29 @@ export default function HairScanResultScreen() {
 
           <TouchableOpacity
             style={[s.ctaBtn, s.ctaSecondary]}
-            onPress={() => navigation.navigate("TrendRadarScreen", { source: "HairScanner" })}
+            onPress={() =>
+              navigation.navigate("TrendRadarScreen", {
+                source: "HairScanner",
+              })
+            }
             activeOpacity={0.9}
           >
             <Text style={s.ctaSecondaryText}>See Trending Shades</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Optional: quick re-scan entry */}
+        <TouchableOpacity
+          style={[s.ctaBtn, s.ctaSecondary, { marginTop: 8 }]}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.9}
+        >
+          <Text style={s.ctaSecondaryText}>Scan Again</Text>
+        </TouchableOpacity>
+
         <Text style={s.microDisclaimer}>
-          Not medical advice. OmniTintAI provides informational estimates only.
+          OmniTintAI provides cosmetic, informational estimates only — not
+          medical advice and not a diagnosis or treatment for any condition.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -256,6 +318,11 @@ const s = StyleSheet.create({
 
   title: { fontSize: 24, fontWeight: "900", color: "#000", marginBottom: 4 },
   subtitle: { fontSize: 13, color: "#6B7280" },
+  confidenceText: {
+    marginTop: 4,
+    fontSize: 11,
+    color: "#9CA3AF",
+  },
 
   tipsBtn: {
     paddingHorizontal: 12,
@@ -296,17 +363,35 @@ const s = StyleSheet.create({
   body: { fontSize: 13, color: "#4B5563" },
 
   metricRow: { marginBottom: 10 },
-  metricLabelRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
+  metricLabelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
   metricLabel: { fontSize: 13, fontWeight: "700", color: "#111" },
   metricValue: { fontSize: 12, color: "#6B7280" },
-  meterBg: { height: 6, borderRadius: 999, backgroundColor: "#E5E7EB", overflow: "hidden" },
-  meterFill: { height: "100%", borderRadius: 999, backgroundColor: "#111" },
+  meterBg: {
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "#E5E7EB",
+    overflow: "hidden",
+  },
+  meterFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#111",
+  },
 
   bulletRow: { flexDirection: "row", marginBottom: 4 },
   bulletDot: { fontSize: 14, marginRight: 6, color: "#4B5563" },
 
   stepBlock: { marginTop: 8 },
-  stepTitle: { fontSize: 13, fontWeight: "700", color: "#111", marginBottom: 2 },
+  stepTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 2,
+  },
 
   chipOutline: {
     borderWidth: 1,
@@ -320,11 +405,25 @@ const s = StyleSheet.create({
   chipOutlineText: { fontSize: 11, color: "#111", fontWeight: "600" },
 
   ctaRow: { flexDirection: "row", marginTop: 8, gap: 10 },
-  ctaBtn: { flex: 1, paddingVertical: 12, borderRadius: 999, alignItems: "center" },
+  ctaBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 999,
+    alignItems: "center",
+  },
   ctaPrimary: { backgroundColor: "#000" },
   ctaPrimaryText: { color: "#FFF", fontSize: 14, fontWeight: "800" },
-  ctaSecondary: { borderWidth: 1, borderColor: "#111", backgroundColor: "#FFF" },
+  ctaSecondary: {
+    borderWidth: 1,
+    borderColor: "#111",
+    backgroundColor: "#FFF",
+  },
   ctaSecondaryText: { color: "#111", fontSize: 13, fontWeight: "700" },
 
-  microDisclaimer: { marginTop: 12, fontSize: 11, color: "#9CA3AF", textAlign: "center" },
+  microDisclaimer: {
+    marginTop: 12,
+    fontSize: 11,
+    color: "#9CA3AF",
+    textAlign: "center",
+  },
 });

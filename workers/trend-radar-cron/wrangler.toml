@@ -1,0 +1,6 @@
+name = "trend-radar-cron"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Bindings:
+# - KV Namespace: TREND_RADAR_KV (same as trend-radar)
