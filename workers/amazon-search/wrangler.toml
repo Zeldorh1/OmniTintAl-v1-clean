@@ -1,3 +1,15 @@
 name = "amazon-search"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+
+# When we wire real PA-API v5, we'll add secrets here via Cloudflare UI:
+#
+# Secrets:
+# - AMAZON_ACCESS_KEY
+# - AMAZON_SECRET_KEY
+# - AMAZON_PARTNER_TAG
+#
+# For now, this worker is a safe stub that just says "not configured".
+#
+# Bindings:
+# - RATE_LIMIT_KV → OMNI_LIMITS_KV

@@ -1,3 +1,11 @@
 name = "color-analyzer"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+
+# No secrets in git. Configure these in the Cloudflare dashboard if/when you wire them:
+#
+# Vars (in UI):
+# - GEMINI_LITE_URL   = "https://gemini-lite.<subdomain>.workers.dev"
+#
+# Bindings (in UI, *not* here):
+# - RATE_LIMIT_KV  → OMNI_LIMITS_KV

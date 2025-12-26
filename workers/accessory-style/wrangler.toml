@@ -1,3 +1,6 @@
 name = "accessory-style"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+
+# Bindings:
+# - RATE_LIMIT_KV → OMNI_LIMITS_KV

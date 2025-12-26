@@ -1,3 +1,9 @@
 name = "product-color"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+
+# Bindings in UI:
+# - RATE_LIMIT_KV → OMNI_LIMITS_KV
+#
+# Optional Vars (in UI) if you later enrich via Grok:
+# - GROK_STYLIST_URL = "https://grok-stylist.<sub>.workers.dev"

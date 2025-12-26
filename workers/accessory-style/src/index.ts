@@ -1,84 +1,116 @@
-import { guardRequest } from '../../lib/guard';
-import { logUsage } from '../../lib/telemetry';
+// V1 · ACCESSORY STYLE · SAFE PRESET RECOMMENDER
+//
+// - Returns a few hair accessory ideas based on style vibe + texture.
+// - No external calls. Fully local + deterministic.
+// - Guarded via guardRequest.
+
+import { guardRequest } from "../../lib/guard";
+
+type AccessoryRequest = {
+  texture?: "straight" | "wavy" | "curly" | "coily" | string;
+  vibe?: "natural" | "bold" | "minimal" | "glam" | string;
+};
+
+type AccessoryItem = {
+  id: string;
+  name: string;
+  tone: string;
+  bestFor?: string;
+};
+
+type AccessoryResponse = {
+  ok: boolean;
+  items: AccessoryItem[];
+};
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function buildAccessories(req: AccessoryRequest): AccessoryItem[] {
+  const texture = (req.texture || "wavy").toLowerCase();
+  const vibe = (req.vibe || "natural").toLowerCase();
+
+  const items: AccessoryItem[] = [
+    {
+      id: "soft-satin-scrunchie",
+      name: "Soft Satin Scrunchies",
+      tone: "Gentle on hair, reduce creasing and breakage.",
+      bestFor: "All textures, especially wavy/curly overnight styles.",
+    },
+    {
+      id: "no-snag-coils",
+      name: "No-Snag Spiral Coils",
+      tone: "Hold ponytails without harsh tension.",
+      bestFor: "Thick or very curly/coily hair.",
+    },
+    {
+      id: "velvet-wide-headband",
+      name: "Velvet Wide Headband",
+      tone: "Keeps hair off the face without denting the style.",
+      bestFor: "Blowouts and loose curls.",
+    },
+  ];
+
+  if (vibe === "bold" || vibe === "glam") {
+    items.push({
+      id: "metallic-claw-clips",
+      name: "Oversized Metallic Claw Clips",
+      tone: "Statement claws that look intentional, not like a backup.",
+      bestFor: "Medium to thick hair, quick updos.",
+    });
+  }
+
+  if (texture === "coily" || texture === "curly") {
+    items.push({
+      id: "satin-bonnet",
+      name: "Satin Sleep Bonnet",
+      tone: "Helps preserve curl pattern and moisture overnight.",
+      bestFor: "Curly and coily hair.",
+    });
+  }
+
+  const dedup = new Map(items.map((i) => [i.id, i]));
+  return Array.from(dedup.values()).slice(0, 6);
+}
 
 export default {
-  async fetch(req: Request, env: any, ctx: ExecutionContext) {
-    const started = Date.now();
-    const uid = req.headers.get('x-user-id') || req.headers.get('x-firebase-uid') || '';
-    const tier = (req.headers.get('x-tier') || 'unknown').toLowerCase();
+  async fetch(req: Request, env: any): Promise<Response> {
+    if (req.method !== "POST") {
+      return json({ ok: false, error: "method_not_allowed" }, 405);
+    }
 
-    // 🔧 CHANGE THESE PER WORKER
-    const endpoint = '/REPLACE_ME';
-    const featureTag: 'scan' | 'explain' | 'rerank' | 'chat' = 'explain';
-    const priority: 'core' | 'experience' = 'experience';
-
-    const decision = await guardRequest(req, env, {
-      endpoint,
-      featureTag,
-      priority,
-      estimatedCostCents: priority === 'core' ? 2 : 1,
+    const decision: any = await guardRequest(req, env, {
+      endpoint: "/accessory-style",
+      featureTag: "explain",
+      priority: "experience",
+      estimatedCostCents: 0, // purely local
     });
 
-    if (!decision.ok) {
-      return new Response(
-        JSON.stringify({ ok: false, reason: decision.reason, retryAfterSec: decision.retryAfterSec ?? null }),
-        { status: 429, headers: { 'Content-Type': 'application/json', ...(decision.headers ?? {}) } }
+    if (!decision?.ok) {
+      return json(
+        {
+          ok: false,
+          error: "rate_limited",
+          reason: decision?.reason ?? "blocked",
+          retryAfterSec: decision?.retryAfterSec,
+        },
+        decision?.status || 429
       );
     }
 
+    let body: AccessoryRequest;
     try {
-      // ✅ REAL WORKER LOGIC GOES HERE
-      // Use decision.mode to degrade:
-      // - "full": normal
-      // - "degraded": smaller/cheaper response
-      // - "cached": return cache/static fallback when possible
-
-      const payload = { ok: true, mode: decision.mode };
-
-      const res = new Response(JSON.stringify(payload), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (uid) {
-        ctx.waitUntil(
-          logUsage(env, uid, {
-            endpoint,
-            tier,
-            featureTag,
-            priority,
-            mode: decision.mode,
-            ok: true,
-            latencyMs: Date.now() - started,
-            status: 200,
-          })
-        );
-      }
-
-      return res;
-    } catch (err: any) {
-      const msg = err?.message ? String(err.message) : 'worker_error';
-
-      if (uid) {
-        ctx.waitUntil(
-          logUsage(env, uid, {
-            endpoint,
-            tier,
-            featureTag,
-            priority,
-            mode: decision.mode,
-            ok: false,
-            latencyMs: Date.now() - started,
-            status: 500,
-            note: msg.slice(0, 140),
-          })
-        );
-      }
-
-      return new Response(JSON.stringify({ ok: false, error: msg }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      body = (await req.json()) as AccessoryRequest;
+    } catch {
+      body = {};
     }
+
+    const items = buildAccessories(body || {});
+    const resp: AccessoryResponse = { ok: true, items };
+    return json(resp);
   },
 };
